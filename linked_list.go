@@ -47,6 +47,8 @@ func fLinkedListValueDeleteFunctionGo(data unsafe.Pointer) {
 }
 
 func (l *LinkedList) DestroyDeep(fn LinkedListValueDeleteFunction) {
+	mapLinkedListValueDeleteFunctionCallbacks.Store(l.ptr, fn)
+	defer mapLinkedListValueDeleteFunctionCallbacks.Delete(l.ptr)
 	C.LinkedList_destroyDeep(l.ptr, C.LinkedListValueDeleteFunction(C.fLinkedListValueDeleteFunctionGo))
 }
 
