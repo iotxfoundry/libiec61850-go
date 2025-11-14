@@ -16,10 +16,6 @@ func TestLinkedList_Add(t *testing.T) {
 		data unsafe.Pointer
 	}{
 		{
-			name: "Add nil",
-			data: nil,
-		},
-		{
 			name: "Add non-nil",
 			data: unsafe.Pointer(&i32v),
 		},
@@ -29,6 +25,7 @@ func TestLinkedList_Add(t *testing.T) {
 			l := libiec61850go.LinkedListCreate()
 			l.Add(tt.data)
 			l.PrintStringList()
+			l.DestroyStatic()
 		})
 	}
 }

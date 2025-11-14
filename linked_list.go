@@ -2,11 +2,11 @@ package libiec61850go
 
 /*
 #cgo CFLAGS: -I${SRCDIR}
-#cgo linux,amd64 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_amd64/iec61850/lib/libiec61850.a -L${SRCDIR}/3rdParty/linux_amd64/iec61850/lib/libhal.a -L${SRCDIR}/3rdParty/linux_amd64/iec61850/lib/libhal-shared.a
-#cgo linux,arm LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_armv7/iec61850/lib/libiec61850.a
-#cgo linux,arm64 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_armv8/iec61850/lib/libiec61850.a
-#cgo linux,386 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_386/iec61850/lib/libiec61850.a
-#cgo windows LDFLAGS: -static -L${SRCDIR}/3rdParty/windows_amd64/iec61850/lib/iec61850.lib
+#cgo linux,amd64 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_amd64/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
+#cgo linux,arm LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_armv7/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
+#cgo linux,arm64 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_armv8/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
+#cgo linux,386 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_386/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
+#cgo windows LDFLAGS: -static -L${SRCDIR}/3rdParty/windows_amd64/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=./
 
 #include <stdlib.h>
 #include "linked_list.h"
