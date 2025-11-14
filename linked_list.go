@@ -1,13 +1,6 @@
 package libiec61850go
 
 /*
-#cgo CFLAGS: -I${SRCDIR}
-#cgo linux,amd64 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_amd64/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
-#cgo linux,arm LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_armv7/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
-#cgo linux,arm64 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_armv8/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
-#cgo linux,386 LDFLAGS: -static -L${SRCDIR}/3rdParty/linux_386/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=/usr/local/lib
-#cgo windows LDFLAGS: -static -L${SRCDIR}/3rdParty/windows_amd64/iec61850/lib/ -liec61850 -lhal -lhal-shared -Wl,-rpath=./
-
 #include <stdlib.h>
 #include "linked_list.h"
 
@@ -22,15 +15,15 @@ import (
 type LinkedListValueDeleteFunction func(value unsafe.Pointer)
 
 type LinkedList struct {
-	ptr C.LinkedList
+	ctx C.LinkedList
 }
 
 func LinkedListCreate() *LinkedList {
-	return &LinkedList{ptr: C.LinkedList_create()}
+	return &LinkedList{ctx: C.LinkedList_create()}
 }
 
 func (l *LinkedList) Destroy() {
-	C.LinkedList_destroy(l.ptr)
+	C.LinkedList_destroy(l.ctx)
 }
 
 var mapLinkedListValueDeleteFunctionCallbacks = sync.Map{} //
@@ -47,57 +40,57 @@ func fLinkedListValueDeleteFunctionGo(data unsafe.Pointer) {
 }
 
 func (l *LinkedList) DestroyDeep(fn LinkedListValueDeleteFunction) {
-	mapLinkedListValueDeleteFunctionCallbacks.Store(l.ptr, fn)
-	defer mapLinkedListValueDeleteFunctionCallbacks.Delete(l.ptr)
-	C.LinkedList_destroyDeep(l.ptr, C.LinkedListValueDeleteFunction(C.fLinkedListValueDeleteFunctionGo))
+	mapLinkedListValueDeleteFunctionCallbacks.Store(l.ctx, fn)
+	defer mapLinkedListValueDeleteFunctionCallbacks.Delete(l.ctx)
+	C.LinkedList_destroyDeep(l.ctx, C.LinkedListValueDeleteFunction(C.fLinkedListValueDeleteFunctionGo))
 }
 
 func (l *LinkedList) DestroyStatic() {
-	C.LinkedList_destroyStatic(l.ptr)
+	C.LinkedList_destroyStatic(l.ctx)
 }
 
 func (l *LinkedList) Add(data unsafe.Pointer) {
-	C.LinkedList_add(l.ptr, data)
+	C.LinkedList_add(l.ctx, data)
 }
 
 func (l *LinkedList) Contains(data unsafe.Pointer) bool {
-	return (bool)(C.LinkedList_contains(l.ptr, data))
+	return (bool)(C.LinkedList_contains(l.ctx, data))
 }
 
 func (l *LinkedList) Remove(data unsafe.Pointer) bool {
-	return (bool)(C.LinkedList_remove(l.ptr, data))
+	return (bool)(C.LinkedList_remove(l.ctx, data))
 }
 
 func (l *LinkedList) Get(index int) *LinkedList {
 	return &LinkedList{
-		ptr: C.LinkedList_get(l.ptr, C.int(index)),
+		ctx: C.LinkedList_get(l.ctx, C.int(index)),
 	}
 }
 
 func (l *LinkedList) GetNext() *LinkedList {
 	return &LinkedList{
-		ptr: C.LinkedList_getNext(l.ptr),
+		ctx: C.LinkedList_getNext(l.ctx),
 	}
 }
 
 func (l *LinkedList) GetLastElement() *LinkedList {
 	return &LinkedList{
-		ptr: C.LinkedList_getLastElement(l.ptr),
+		ctx: C.LinkedList_getLastElement(l.ctx),
 	}
 }
 
 func (l *LinkedList) InsertAfter(data unsafe.Pointer) {
-	C.LinkedList_insertAfter(l.ptr, data)
+	C.LinkedList_insertAfter(l.ctx, data)
 }
 
 func (l *LinkedList) Size() int {
-	return int(C.LinkedList_size(l.ptr))
+	return int(C.LinkedList_size(l.ctx))
 }
 
 func (l *LinkedList) GetData() unsafe.Pointer {
-	return C.LinkedList_getData(l.ptr)
+	return C.LinkedList_getData(l.ctx)
 }
 
 func (l *LinkedList) PrintStringList() {
-	C.LinkedList_printStringList(l.ptr)
+	C.LinkedList_printStringList(l.ctx)
 }
