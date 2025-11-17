@@ -7,10 +7,61 @@ package libiec61850go
 extern void fIedModelInitializerGo();
 */
 import "C"
-import "sync"
+import (
+	"sync"
+	"unsafe"
+)
 
 type ModelNode struct {
 	ctx *C.ModelNode
+}
+
+func (x *ModelNode) GetChildCount() int {
+	return int(C.ModelNode_getChildCount(x.ctx))
+}
+
+func (x *ModelNode) GetChild(name string) *ModelNode {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+	return &ModelNode{ctx: C.ModelNode_getChild(x.ctx, cname)}
+}
+
+func (x *ModelNode) GetChildWithIdx(idx int) *ModelNode {
+	return &ModelNode{ctx: C.ModelNode_getChildWithIdx(x.ctx, C.int(idx))}
+}
+
+func (x *ModelNode) GetChildWithFc(name string, fc FunctionalConstraint) *ModelNode {
+	cname := C.CString(name)
+	defer C.free(unsafe.Pointer(cname))
+	return &ModelNode{ctx: C.ModelNode_getChildWithFc(x.ctx, cname, C.FunctionalConstraint(fc))}
+}
+
+func (x *ModelNode) GetObjectReference(objectReference string) string {
+	cref := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cref))
+	return C.GoString(C.ModelNode_getObjectReference(x.ctx, cref))
+}
+
+func (x *ModelNode) GetObjectReferenceEx(objectReference string, withoutIedName bool) string {
+	cref := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cref))
+	return C.GoString(C.ModelNode_getObjectReferenceEx(x.ctx, cref, C.bool(withoutIedName)))
+}
+
+func (x *ModelNode) GetType() ModelNodeType {
+	return ModelNodeType(C.ModelNode_getType(x.ctx))
+}
+
+func (x *ModelNode) GetName() string {
+	return C.GoString(C.ModelNode_getName(x.ctx))
+}
+
+func (x *ModelNode) GetParent() *ModelNode {
+	return &ModelNode{ctx: x.ctx.parent}
+}
+
+func (x *ModelNode) GetChildren() *LinkedList {
+	return &LinkedList{ctx: C.ModelNode_getChildren(x.ctx)}
 }
 
 func (x *ModelNode) ModelType() ModelNodeType {
@@ -89,6 +140,10 @@ type DataObject struct {
 	ctx *C.DataObject
 }
 
+func (x *DataObject) HasFCData(fc FunctionalConstraint) bool {
+	return bool(C.DataObject_hasFCData(x.ctx, C.FunctionalConstraint(fc)))
+}
+
 func (x *DataObject) ModelType() ModelNodeType {
 	return ModelNodeType(x.ctx.modelType)
 }
@@ -121,6 +176,24 @@ type LogicalNode struct {
 	ctx *C.LogicalNode
 }
 
+func (x *LogicalNode) HasFCData(fc FunctionalConstraint) bool {
+	return bool(C.LogicalNode_hasFCData(x.ctx, C.FunctionalConstraint(fc)))
+}
+
+func (x *LogicalNode) HasBufferedReports() bool {
+	return bool(C.LogicalNode_hasBufferedReports(x.ctx))
+}
+
+func (x *LogicalNode) HasUnbufferedReports() bool {
+	return bool(C.LogicalNode_hasUnbufferedReports(x.ctx))
+}
+
+func (x *LogicalNode) GetDataSet(dataSetName string) *DataSet {
+	cname := C.CString(dataSetName)
+	defer C.free(unsafe.Pointer(cname))
+	return &DataSet{ctx: C.LogicalNode_getDataSet(x.ctx, cname)}
+}
+
 func (x *LogicalNode) ModelType() ModelNodeType {
 	return ModelNodeType(x.ctx.modelType)
 }
@@ -143,6 +216,26 @@ func (x *LogicalNode) FirstChild() *ModelNode {
 
 type LogicalDevice struct {
 	ctx *C.LogicalDevice
+}
+
+func (x *LogicalDevice) GetLogicalNodeCount() int {
+	return int(C.LogicalDevice_getLogicalNodeCount(x.ctx))
+}
+
+func (x *LogicalDevice) GetChildByMmsVariableName(mmsVariableName string) *ModelNode {
+	cmmsVariableName := C.CString(mmsVariableName)
+	defer C.free(unsafe.Pointer(cmmsVariableName))
+	return &ModelNode{ctx: C.LogicalDevice_getChildByMmsVariableName(x.ctx, cmmsVariableName)}
+}
+
+func (x *LogicalDevice) GetSettingGroupControlBlock() *SettingGroupControlBlock {
+	return &SettingGroupControlBlock{ctx: C.LogicalDevice_getSettingGroupControlBlock(x.ctx)}
+}
+
+func (x *LogicalDevice) GetLogicalNode(lnName string) *LogicalNode {
+	cname := C.CString(lnName)
+	defer C.free(unsafe.Pointer(cname))
+	return &LogicalNode{ctx: C.LogicalDevice_getLogicalNode(x.ctx, cname)}
 }
 
 func (x *LogicalDevice) ModelType() ModelNodeType {
@@ -171,6 +264,68 @@ func (x *LogicalDevice) LdName() string {
 
 type IedModel struct {
 	ctx *C.IedModel
+}
+
+func (x *IedModel) SetAttributeValuesToNull() {
+	C.IedModel_setAttributeValuesToNull(x.ctx)
+}
+
+func (x *IedModel) GetDevice(ldName string) *LogicalDevice {
+	cname := C.CString(ldName)
+	defer C.free(unsafe.Pointer(cname))
+	return &LogicalDevice{ctx: C.IedModel_getDevice(x.ctx, cname)}
+}
+
+func (x *IedModel) LookupDataSet(dataSetReference string) *DataSet {
+	cname := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cname))
+	return &DataSet{ctx: C.IedModel_lookupDataSet(x.ctx, cname)}
+}
+
+func (x *IedModel) LookupDataAttributeByMmsValue(mmsValue *MmsValue) *DataAttribute {
+	return &DataAttribute{ctx: C.IedModel_lookupDataAttributeByMmsValue(x.ctx, mmsValue.ctx)}
+}
+
+func (x *IedModel) GetLogicalDeviceCount() int {
+	return int(C.IedModel_getLogicalDeviceCount(x.ctx))
+}
+
+func (x *IedModel) SetIedName(iedName string) {
+	cname := C.CString(iedName)
+	defer C.free(unsafe.Pointer(cname))
+	C.IedModel_setIedName(x.ctx, cname)
+}
+
+func (x *IedModel) GetModelNodeByObjectReference(objectReference string) *ModelNode {
+	cref := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cref))
+	return &ModelNode{ctx: C.IedModel_getModelNodeByObjectReference(x.ctx, cref)}
+}
+
+func (x *IedModel) GetSVControlBlock(parentLN *LogicalNode, svcbName string) *SVControlBlock {
+	csvcbName := C.CString(svcbName)
+	defer C.free(unsafe.Pointer(csvcbName))
+	return &SVControlBlock{ctx: C.IedModel_getSVControlBlock(x.ctx, parentLN.ctx, csvcbName)}
+}
+
+func (x *IedModel) GetModelNodeByShortObjectReference(objectReference string) *ModelNode {
+	cobjectReference := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cobjectReference))
+	return &ModelNode{ctx: C.IedModel_getModelNodeByShortObjectReference(x.ctx, cobjectReference)}
+}
+
+func (x *IedModel) GetModelNodeByShortAddress(shortAddress uint32) *ModelNode {
+	return &ModelNode{ctx: C.IedModel_getModelNodeByShortAddress(x.ctx, C.uint32_t(shortAddress))}
+}
+
+func (x *IedModel) GetDeviceByInst(ldInst string) *LogicalDevice {
+	cinst := C.CString(ldInst)
+	defer C.free(unsafe.Pointer(cinst))
+	return &LogicalDevice{ctx: C.IedModel_getDeviceByInst(x.ctx, cinst)}
+}
+
+func (x *IedModel) GetDeviceByIndex(index int) *LogicalDevice {
+	return &LogicalDevice{ctx: C.IedModel_getDeviceByIndex(x.ctx, C.int(index))}
 }
 
 func (x *IedModel) Name() string {
