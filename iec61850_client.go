@@ -7,8 +7,10 @@ package libiec61850go
 extern void fIedConnectionClosedHandlerGo(void* parameter, IedConnection connection);
 extern void fStateChangedHandlerGo(void* parameter, IedConnection connection, IedConnectionState newState);
 extern void fGetGoCBValuesHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, ClientGooseControlBlock goCB);
-extern void fSetGoCBValuesHandlerGo(uint32_t invokeId, void* parameter, IedClientError err);
 extern void fReadObjectHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, MmsValue* value);
+extern void fGetRCBValuesHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, ClientReportControlBlock rcb);
+extern void fGenericServiceHandlerGo(uint32_t invokeId, void* parameter, IedClientError err);
+extern void fReportCallbackFunctionGo(void* parameter, ClientReport report);
 */
 import "C"
 import (
@@ -317,11 +319,11 @@ func (x *IedConnection) InstallStateChangedHandler(handler StateChangedHandler, 
 	C.IedConnection_installStateChangedHandler(x.ctx, (C.IedConnection_StateChangedHandler)(C.fStateChangedHandlerGo), parameter)
 }
 
-// func (x *IedConnection) GetMmsConnection() *MmsConnection {
-// 	return &MmsConnection{
-// 		ctx: C.IedConnection_getMmsConnection(x.ctx),
-// 	}
-// }
+func (x *IedConnection) GetMmsConnection() *MmsConnection {
+	return &MmsConnection{
+		ctx: C.IedConnection_getMmsConnection(x.ctx),
+	}
+}
 
 const (
 	/** SV ASDU contains attribute RefrTm */
@@ -599,11 +601,11 @@ func (x *IedConnection) SetGoCBValues(goCB *ClientGooseControlBlock, parametersM
 
 type GenericServiceHandler func(invokeId uint32, parameter any, err IedClientError)
 
-var mapSetGoCBValuesHandlers = sync.Map{}
+var mapGenericServiceHandlers = sync.Map{}
 
 //export fGenericServiceHandlerGo
 func fGenericServiceHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError) {
-	mapSetGoCBValuesHandlers.Range(func(key, value any) bool {
+	mapGenericServiceHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(GenericServiceHandler); ok {
 			fn(uint32(invokeId), parameter, IedClientError(err))
 		}
@@ -614,9 +616,9 @@ func fGenericServiceHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err
 func (x *IedConnection) SetGoCBValuesAsync(goCB *ClientGooseControlBlock, parametersMask uint32, singleRequest bool, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
 	err := IED_ERROR_OK
 	id := xid.New().String()
-	mapSetGoCBValuesHandlers.Store(id, handler)
-	defer mapSetGoCBValuesHandlers.Delete(id)
-	out := C.IedConnection_setGoCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), goCB.ctx, (C.uint32_t)(parametersMask), (C.bool)(singleRequest), (C.IedConnection_GenericServiceHandler)(C.fSetGoCBValuesHandlerGo), parameter)
+	mapGenericServiceHandlers.Store(id, handler)
+	defer mapGenericServiceHandlers.Delete(id)
+	out := C.IedConnection_setGoCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), goCB.ctx, (C.uint32_t)(parametersMask), (C.bool)(singleRequest), (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
 	return (uint32)(out), IedClientError(err)
 }
 
@@ -667,9 +669,9 @@ func (x *IedConnection) WriteObjectAsync(dataAttributeReference string, fc Funct
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	id := xid.New().String()
-	mapSetGoCBValuesHandlers.Store(id, handler)
-	defer mapSetGoCBValuesHandlers.Delete(id)
-	out := C.IedConnection_writeObjectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), value.ctx, (C.IedConnection_GenericServiceHandler)(C.fSetGoCBValuesHandlerGo), parameter)
+	mapGenericServiceHandlers.Store(id, handler)
+	defer mapGenericServiceHandlers.Delete(id)
+	out := C.IedConnection_writeObjectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), value.ctx, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
 	return (uint32)(out), IedClientError(err)
 }
 
@@ -788,4 +790,392 @@ func (x *IedConnection) WriteOctetStringValue(dataAttributeReference string, fc 
 	err := IED_ERROR_OK
 	C.IedConnection_writeOctetString(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (*C.uint8_t)(unsafe.SliceData(value)), (C.int)(len(value)))
 	return IedClientError(err)
+}
+
+func (x *IedConnection) GetRCBValues(rcbReference string, updateRcb *ClientReportControlBlock) (ClientReportControlBlock, error) {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getRCBValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, updateRcb.ctx)
+	return ClientReportControlBlock{ctx: ctx}, IedClientError(err)
+}
+
+type GetRCBValuesHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, rcb *ClientReportControlBlock)
+
+var mapGetRCBValuesHandlers = sync.Map{}
+
+//export fGetRCBValuesHandlerGo
+func fGetRCBValuesHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, rcb C.ClientReportControlBlock) {
+	mapGetRCBValuesHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(GetRCBValuesHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &ClientReportControlBlock{ctx: rcb})
+		}
+		return true
+	})
+}
+
+func (x *IedConnection) GetRCBValuesAsync(rcbReference string, updateRcb *ClientReportControlBlock, handler GetRCBValuesHandler, parameter unsafe.Pointer) (uint32, error) {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getRCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, updateRcb.ctx, (C.IedConnection_GetRCBValuesHandler)(C.fGetRCBValuesHandlerGo), parameter)
+	return (uint32)(invokeId), IedClientError(err)
+}
+
+type ReasonForInclusion int
+
+const (
+	/** the element is not included in the received report */
+	IEC61850_REASON_NOT_INCLUDED = C.IEC61850_REASON_NOT_INCLUDED
+
+	/** the element is included due to a change of the data value */
+	IEC61850_REASON_DATA_CHANGE = C.IEC61850_REASON_DATA_CHANGE
+
+	/** the element is included due to a change in the quality of data */
+	IEC61850_REASON_QUALITY_CHANGE = C.IEC61850_REASON_QUALITY_CHANGE
+
+	/** the element is included due to an update of the data value */
+	IEC61850_REASON_DATA_UPDATE = C.IEC61850_REASON_DATA_UPDATE
+
+	/** the element is included due to a periodic integrity report task */
+	IEC61850_REASON_INTEGRITY = C.IEC61850_REASON_INTEGRITY
+
+	/** the element is included due to a general interrogation by the client */
+	IEC61850_REASON_GI = C.IEC61850_REASON_GI
+
+	/** the reason for inclusion is unknown (e.g. report is not configured to include reason-for-inclusion) */
+	IEC61850_REASON_UNKNOWN = C.IEC61850_REASON_UNKNOWN
+
+	/* Element encoding mask values for ClientReportControlBlock */
+
+	/** include the report ID into the setRCB request */
+	RCB_ELEMENT_RPT_ID = C.RCB_ELEMENT_RPT_ID
+
+	/** include the report enable element into the setRCB request */
+	RCB_ELEMENT_RPT_ENA = C.RCB_ELEMENT_RPT_ENA
+
+	/** include the reservation element into the setRCB request (only available in unbuffered RCBs!) */
+	RCB_ELEMENT_RESV = C.RCB_ELEMENT_RESV
+
+	/** include the data set element into the setRCB request */
+	RCB_ELEMENT_DATSET = C.RCB_ELEMENT_DATSET
+
+	/** include the configuration revision element into the setRCB request */
+	RCB_ELEMENT_CONF_REV = C.RCB_ELEMENT_CONF_REV
+
+	/** include the option fields element into the setRCB request */
+	RCB_ELEMENT_OPT_FLDS = C.RCB_ELEMENT_OPT_FLDS
+
+	/** include the bufTm (event buffering time) element into the setRCB request */
+	RCB_ELEMENT_BUF_TM = C.RCB_ELEMENT_BUF_TM
+
+	/** include the sequence number element into the setRCB request (should be used!) */
+	RCB_ELEMENT_SQ_NUM = C.RCB_ELEMENT_SQ_NUM
+
+	/** include the trigger options element into the setRCB request */
+	RCB_ELEMENT_TRG_OPS = C.RCB_ELEMENT_TRG_OPS
+
+	/** include the integrity period element into the setRCB request */
+	RCB_ELEMENT_INTG_PD = C.RCB_ELEMENT_INTG_PD
+
+	/** include the GI (general interrogation) element into the setRCB request */
+	RCB_ELEMENT_GI = C.RCB_ELEMENT_GI
+
+	/** include the purge buffer element into the setRCB request (only available in buffered RCBs) */
+	RCB_ELEMENT_PURGE_BUF = C.RCB_ELEMENT_PURGE_BUF
+
+	/** include the entry ID element into the setRCB request (only available in buffered RCBs) */
+	RCB_ELEMENT_ENTRY_ID = C.RCB_ELEMENT_ENTRY_ID
+
+	/** include the time of entry element into the setRCB request (only available in buffered RCBs) */
+	RCB_ELEMENT_TIME_OF_ENTRY = C.RCB_ELEMENT_TIME_OF_ENTRY
+
+	/** include the reservation time element into the setRCB request (only available in buffered RCBs) */
+	RCB_ELEMENT_RESV_TMS = C.RCB_ELEMENT_RESV_TMS
+
+	/** include the owner element into the setRCB request */
+	RCB_ELEMENT_OWNER = C.RCB_ELEMENT_OWNER
+)
+
+func (x ReasonForInclusion) String() string {
+	return C.GoString(C.ReasonForInclusion_getValueAsString(C.ReasonForInclusion(x)))
+}
+
+func (x *IedConnection) SetRCBValues(rcbReference string, rcb *ClientReportControlBlock, parametersMask uint32, singleRequest bool) error {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	err := IED_ERROR_OK
+	C.IedConnection_setRCBValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), rcb.ctx, C.uint32_t(parametersMask), C.bool(singleRequest))
+	return IedClientError(err)
+}
+
+func (x *IedConnection) SetRCBValuesAsync(rcbReference string, rcb *ClientReportControlBlock, parametersMask uint32, singleRequest bool, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	id := xid.New().String()
+	mapGenericServiceHandlers.Store(id, handler)
+	defer mapGenericServiceHandlers.Delete(id)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_setRCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), rcb.ctx, C.uint32_t(parametersMask), C.bool(singleRequest), (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
+	return (uint32)(invokeId), IedClientError(err)
+}
+
+type ReportCallbackFunction func(parameter unsafe.Pointer, report *ClientReport)
+
+var mapReportCallbackFunctions = sync.Map{}
+
+//export fReportCallbackFunctionGo
+func fReportCallbackFunctionGo(parameter unsafe.Pointer, report C.ClientReport) {
+	mapReportCallbackFunctions.Range(func(key, value any) bool {
+		if fn, ok := value.(ReportCallbackFunction); ok {
+			fn(parameter, &ClientReport{ctx: report})
+		}
+		return true
+	})
+}
+
+func (x *IedConnection) InstallReportHandler(rcbReference string, rptId string, handler ReportCallbackFunction, parameter unsafe.Pointer) {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	cid := C.CString(rptId)
+	defer C.free(unsafe.Pointer(cid))
+	mapReportCallbackFunctions.Store(rcbReference, handler)
+	C.IedConnection_installReportHandler(x.ctx, cref, cid, (C.ReportCallbackFunction)(C.fReportCallbackFunctionGo), parameter)
+}
+
+func (x *IedConnection) UninstallReportHandler(rcbReference string) {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	C.IedConnection_uninstallReportHandler(x.ctx, cref)
+	mapReportCallbackFunctions.Delete(rcbReference)
+}
+
+func (x *IedConnection) TriggerGIReport(rcbReference string) error {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	err := IED_ERROR_OK
+	C.IedConnection_triggerGIReport(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref)
+	return IedClientError(err)
+}
+
+func (x *ClientReport) GetDataSetName() string {
+	return C.GoString(C.ClientReport_getDataSetName(x.ctx))
+}
+
+func (x *ClientReport) GetDataSetValues() *MmsValue {
+	return &MmsValue{ctx: C.ClientReport_getDataSetValues(x.ctx)}
+}
+
+func (x *ClientReport) GetRcbReference() string {
+	return C.GoString(C.ClientReport_getRcbReference(x.ctx))
+}
+
+func (x *ClientReport) GetRptId() string {
+	return C.GoString(C.ClientReport_getRptId(x.ctx))
+}
+
+func (x *ClientReport) GetReasonForInclusion(elementIndex int) ReasonForInclusion {
+	return ReasonForInclusion(C.ClientReport_getReasonForInclusion(x.ctx, C.int(elementIndex)))
+}
+
+func (x *ClientReport) GetEntryId() *MmsValue {
+	return &MmsValue{ctx: C.ClientReport_getEntryId(x.ctx)}
+}
+
+func (x *ClientReport) HasTimestamp() bool {
+	return bool(C.ClientReport_hasTimestamp(x.ctx))
+}
+
+func (x *ClientReport) HasSeqNum() bool {
+	return bool(C.ClientReport_hasSeqNum(x.ctx))
+}
+
+func (x *ClientReport) GetSeqNum() uint16 {
+	return (uint16)(C.ClientReport_getSeqNum(x.ctx))
+}
+
+func (x *ClientReport) HasDataSetName() bool {
+	return bool(C.ClientReport_hasDataSetName(x.ctx))
+}
+
+func (x *ClientReport) HasReasonForInclusion() bool {
+	return bool(C.ClientReport_hasReasonForInclusion(x.ctx))
+}
+
+func (x *ClientReport) HasConfRev() bool {
+	return bool(C.ClientReport_hasConfRev(x.ctx))
+}
+
+func (x *ClientReport) GetConfRev() uint32 {
+	return (uint32)(C.ClientReport_getConfRev(x.ctx))
+}
+
+func (x *ClientReport) HasBufOvfl() bool {
+	return bool(C.ClientReport_hasBufOvfl(x.ctx))
+}
+
+func (x *ClientReport) GetBufOvfl() bool {
+	return bool(C.ClientReport_getBufOvfl(x.ctx))
+}
+
+func (x *ClientReport) HasDataReference() bool {
+	return bool(C.ClientReport_hasDataReference(x.ctx))
+}
+
+func (x *ClientReport) GetDataReference(elementIndex int) string {
+	return C.GoString(C.ClientReport_getDataReference(x.ctx, C.int(elementIndex)))
+}
+
+func (x *ClientReport) GetTimestamp() uint64 {
+	return (uint64)(C.ClientReport_getTimestamp(x.ctx))
+}
+
+func (x *ClientReport) HasSubSeqNum() bool {
+	return bool(C.ClientReport_hasSubSeqNum(x.ctx))
+}
+
+func (x *ClientReport) GetSubSeqNum() uint16 {
+	return (uint16)(C.ClientReport_getSubSeqNum(x.ctx))
+}
+
+func (x *ClientReport) GetMoreSeqmentsFollow() bool {
+	return bool(C.ClientReport_getMoreSeqmentsFollow(x.ctx))
+}
+
+func ClientReportControlBlockCreate(rcbReference string) *ClientReportControlBlock {
+	cref := C.CString(rcbReference)
+	defer C.free(unsafe.Pointer(cref))
+	return &ClientReportControlBlock{ctx: C.ClientReportControlBlock_create(cref)}
+}
+
+func (x *ClientReportControlBlock) Destroy() {
+	C.ClientReportControlBlock_destroy(x.ctx)
+}
+
+func (x *ClientReportControlBlock) GetObjectReference() string {
+	return C.GoString(C.ClientReportControlBlock_getObjectReference(x.ctx))
+}
+
+func (x *ClientReportControlBlock) IsBuffered() bool {
+	return bool(C.ClientReportControlBlock_isBuffered(x.ctx))
+}
+
+func (x *ClientReportControlBlock) GetRptId() string {
+	return C.GoString(C.ClientReportControlBlock_getRptId(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetRptId(rptId string) {
+	cid := C.CString(rptId)
+	defer C.free(unsafe.Pointer(cid))
+	C.ClientReportControlBlock_setRptId(x.ctx, cid)
+}
+
+func (x *ClientReportControlBlock) GetRptEna() bool {
+	return bool(C.ClientReportControlBlock_getRptEna(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetRptEna(rptEna bool) {
+	C.ClientReportControlBlock_setRptEna(x.ctx, C.bool(rptEna))
+}
+
+func (x *ClientReportControlBlock) GetResv() bool {
+	return bool(C.ClientReportControlBlock_getResv(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetResv(resv bool) {
+	C.ClientReportControlBlock_setResv(x.ctx, C.bool(resv))
+}
+
+func (x *ClientReportControlBlock) GetDataSetReference() string {
+	return C.GoString(C.ClientReportControlBlock_getDataSetReference(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetDataSetReference(dataSetReference string) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	C.ClientReportControlBlock_setDataSetReference(x.ctx, cid)
+}
+
+func (x *ClientReportControlBlock) GetConfRev() uint32 {
+	return (uint32)(C.ClientReportControlBlock_getConfRev(x.ctx))
+}
+
+func (x *ClientReportControlBlock) GetOptFlds() int {
+	return (int)(C.ClientReportControlBlock_getOptFlds(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetOptFlds(optFlds int) {
+	C.ClientReportControlBlock_setOptFlds(x.ctx, C.int(optFlds))
+}
+
+func (x *ClientReportControlBlock) GetBufTm() uint32 {
+	return (uint32)(C.ClientReportControlBlock_getBufTm(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetBufTm(bufTm uint32) {
+	C.ClientReportControlBlock_setBufTm(x.ctx, C.uint32_t(bufTm))
+}
+
+func (x *ClientReportControlBlock) GetSqNum() uint16 {
+	return (uint16)(C.ClientReportControlBlock_getSqNum(x.ctx))
+}
+
+func (x *ClientReportControlBlock) GetTrgOps() int {
+	return (int)(C.ClientReportControlBlock_getTrgOps(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetTrgOps(trgOps int) {
+	C.ClientReportControlBlock_setTrgOps(x.ctx, C.int(trgOps))
+}
+
+func (x *ClientReportControlBlock) GetIntgPd() uint32 {
+	return (uint32)(C.ClientReportControlBlock_getIntgPd(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetIntgPd(intgPd uint32) {
+	C.ClientReportControlBlock_setIntgPd(x.ctx, C.uint32_t(intgPd))
+}
+
+func (x *ClientReportControlBlock) GetGI() bool {
+	return bool(C.ClientReportControlBlock_getGI(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetGI(gi bool) {
+	C.ClientReportControlBlock_setGI(x.ctx, C.bool(gi))
+}
+
+func (x *ClientReportControlBlock) GetPurgeBuf() bool {
+	return bool(C.ClientReportControlBlock_getPurgeBuf(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetPurgeBuf(purgeBuf bool) {
+	C.ClientReportControlBlock_setPurgeBuf(x.ctx, C.bool(purgeBuf))
+}
+
+func (x *ClientReportControlBlock) HasResvTms() bool {
+	return bool(C.ClientReportControlBlock_hasResvTms(x.ctx))
+}
+
+func (x *ClientReportControlBlock) GetResvTms() int16 {
+	return (int16)(C.ClientReportControlBlock_getResvTms(x.ctx))
+}
+
+func (x *ClientReportControlBlock) SetResvTms(resvTms int16) {
+	C.ClientReportControlBlock_setResvTms(x.ctx, C.int16_t(resvTms))
+}
+
+func (x *ClientReportControlBlock) GetEntryId() *MmsValue {
+	return &MmsValue{ctx: C.ClientReportControlBlock_getEntryId(x.ctx)}
+}
+
+func (x *ClientReportControlBlock) SetEntryId(entryId *MmsValue) {
+	C.ClientReportControlBlock_setEntryId(x.ctx, entryId.ctx)
+}
+
+func (x *ClientReportControlBlock) GetEntryTime() uint64 {
+	return (uint64)(C.ClientReportControlBlock_getEntryTime(x.ctx))
+}
+
+func (x *ClientReportControlBlock) GetOwner() *MmsValue {
+	return &MmsValue{ctx: C.ClientReportControlBlock_getOwner(x.ctx)}
 }
