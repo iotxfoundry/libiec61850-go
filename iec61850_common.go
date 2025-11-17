@@ -35,7 +35,7 @@ func (x *PhyComAddress) AppId() uint16 {
 
 func (x *PhyComAddress) DstAddress() [6]uint8 {
 	res := [6]uint8{}
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		res[i] = uint8(x.ctx.dstAddress[i])
 	}
 	return res

@@ -326,7 +326,7 @@ func (x *ReportControlBlock) IntPeriod() uint32 {
 
 func (x *ReportControlBlock) ClientReservation() [17]uint8 {
 	res := [17]uint8{}
-	for i := 0; i < 17; i++ {
+	for i := range 17 {
 		res[i] = uint8(x.ctx.clientReservation[i])
 	}
 	return res
