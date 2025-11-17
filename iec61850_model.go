@@ -4,8 +4,10 @@ package libiec61850go
 #include <stdlib.h>
 #include "iec61850_model.h"
 
+extern void fIedModelInitializerGo();
 */
 import "C"
+import "sync"
 
 type ModelNode struct {
 	ctx *C.ModelNode
@@ -169,16 +171,6 @@ func (x *LogicalDevice) LdName() string {
 
 type IedModel struct {
 	ctx *C.IedModel
-	// Name        string
-	// FirstChild  *LogicalDevice
-	// DataSets    []DataSet
-	// Rcbs        []ReportControlBlock
-	// GseCBs      []GSEControlBlock
-	// SvCBs       []SVControlBlock
-	// Sgcbs       []SettingGroupControlBlock
-	// Lcbs        []LogControlBlock
-	// Logs        []Log
-	// Initializer func()
 }
 
 func (x *IedModel) Name() string {
@@ -217,8 +209,23 @@ func (x *IedModel) Logs() *Log {
 	return &Log{ctx: x.ctx.logs}
 }
 
-func (x *IedModel) Initializer() func() {
-	return x.ctx.initializer
+var mapIedModelInitializerCallbacks = sync.Map{}
+
+//export fIedModelInitializerGo
+func fIedModelInitializerGo() {
+	mapIedModelInitializerCallbacks.Range(func(k, v any) bool {
+		cb, ok := v.(func())
+		if ok {
+			cb()
+		}
+		return true
+	})
+}
+
+func (x *IedModel) SetInitializer(initializer func()) {
+	// Register the initializer callback
+	mapIedModelInitializerCallbacks.Store(x, initializer)
+	x.ctx.initializer = C.IedModelInitializer(C.fIedModelInitializerGo)
 }
 
 type DataSet struct {

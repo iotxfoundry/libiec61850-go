@@ -132,6 +132,8 @@ typedef enum {
     DataAttributeModelType
 } ModelNodeType;
 
+typedef void (*IedModelInitializer) (void);
+
 struct sIedModel {
     char* name;
     LogicalDevice* firstChild;
@@ -142,7 +144,7 @@ struct sIedModel {
     SettingGroupControlBlock* sgcbs;
     LogControlBlock* lcbs;
     Log* logs;
-    void (*initializer) (void);
+    IedModelInitializer initializer;
 };
 
 struct sLogicalDevice {
