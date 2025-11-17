@@ -144,7 +144,7 @@ typedef struct sMmsAccessSpecifier
     char* componentName;
 } MmsAccessSpecifier;
 
-typedef struct
+typedef struct sMmsVariableAccessSpecification
 {
     char* domainId;
     char* itemId;

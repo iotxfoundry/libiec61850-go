@@ -481,5 +481,5 @@ func (x *MmsVariableSpecification) GetMaxEncodedSize() int {
 }
 
 func (x *MmsError) String() string {
-	return C.GoString(C.MmsError_toString(C.MmsError(x.ctx)))
+	return C.GoString(C.MmsError_toString(C.MmsError(*x)))
 }
