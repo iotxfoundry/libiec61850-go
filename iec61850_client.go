@@ -644,9 +644,9 @@ var mapReadObjectHandlers = sync.Map{}
 
 //export fReadObjectHandlerGo
 func fReadObjectHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, value *C.MmsValue) {
-	mapReadObjectHandlers.Range(func(key, value any) bool {
-		if fn, ok := value.(ReadObjectHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &MmsValue{ctx: value.(*C.MmsValue)})
+	mapReadObjectHandlers.Range(func(k, v any) bool {
+		if fn, ok := k.(ReadObjectHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &MmsValue{ctx: value})
 		}
 		return true
 	})
@@ -1290,6 +1290,9 @@ func (x *IedConnection) WriteDataSetValues(dataSetReference string, values *Link
 	var accessResults *C.LinkedList
 	err := IED_ERROR_OK
 	C.IedConnection_writeDataSetValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, values.ctx, (*C.LinkedList)(unsafe.Pointer(accessResults)))
+	if accessResults == nil {
+		return nil, IedClientError(err)
+	}
 	return &LinkedList{ctx: *accessResults}, IedClientError(err)
 }
 
