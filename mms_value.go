@@ -1,3 +1,5 @@
+// Package libiec61850go provides Go bindings for the libIEC61850 library.
+// This package enables Go applications to interact with IEC 61850 devices using MMS (Manufacturing Message Specification) protocol.
 package libiec61850go
 
 /*
@@ -11,146 +13,237 @@ import (
 	"unsafe"
 )
 
+// MmsValueIndication represents the indication of an MMS value operation result.
 type MmsValueIndication int32
 
+// MMS value indication constants
 const (
-	MMS_VALUE_NO_RESPONSE               MmsValueIndication = C.MMS_VALUE_NO_RESPONSE
-	MMS_VALUE_OK                        MmsValueIndication = C.MMS_VALUE_OK
-	MMS_VALUE_ACCESS_DENIED             MmsValueIndication = C.MMS_VALUE_ACCESS_DENIED
-	MMS_VALUE_VALUE_INVALID             MmsValueIndication = C.MMS_VALUE_VALUE_INVALID
-	MMS_VALUE_TEMPORARILY_UNAVAILABLE   MmsValueIndication = C.MMS_VALUE_TEMPORARILY_UNAVAILABLE
-	MMS_VALUE_OBJECT_ACCESS_UNSUPPORTED MmsValueIndication = C.MMS_VALUE_OBJECT_ACCESS_UNSUPPORTED
+	MMS_VALUE_NO_RESPONSE               MmsValueIndication = C.MMS_VALUE_NO_RESPONSE               // No response received
+	MMS_VALUE_OK                        MmsValueIndication = C.MMS_VALUE_OK                        // Operation successful
+	MMS_VALUE_ACCESS_DENIED             MmsValueIndication = C.MMS_VALUE_ACCESS_DENIED             // Access denied
+	MMS_VALUE_VALUE_INVALID             MmsValueIndication = C.MMS_VALUE_VALUE_INVALID             // Invalid value
+	MMS_VALUE_TEMPORARILY_UNAVAILABLE   MmsValueIndication = C.MMS_VALUE_TEMPORARILY_UNAVAILABLE   // Temporarily unavailable
+	MMS_VALUE_OBJECT_ACCESS_UNSUPPORTED MmsValueIndication = C.MMS_VALUE_OBJECT_ACCESS_UNSUPPORTED // Object access unsupported
 )
 
+// MmsVariableSpecification represents the specification of an MMS variable.
+// It defines the type and structure of MMS values.
 type MmsVariableSpecification struct {
 	ctx *C.MmsVariableSpecification
 }
 
+// MmsDataAccessError represents error codes for MMS data access operations.
 type MmsDataAccessError int32
 
+// MMS data access error constants
 const (
-	DATA_ACCESS_ERROR_SUCCESS_NO_UPDATE             MmsDataAccessError = C.DATA_ACCESS_ERROR_SUCCESS_NO_UPDATE
-	DATA_ACCESS_ERROR_NO_RESPONSE                   MmsDataAccessError = C.DATA_ACCESS_ERROR_NO_RESPONSE
-	DATA_ACCESS_ERROR_SUCCESS                       MmsDataAccessError = C.DATA_ACCESS_ERROR_SUCCESS
-	DATA_ACCESS_ERROR_OBJECT_INVALIDATED            MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_INVALIDATED
-	DATA_ACCESS_ERROR_HARDWARE_FAULT                MmsDataAccessError = C.DATA_ACCESS_ERROR_HARDWARE_FAULT
-	DATA_ACCESS_ERROR_TEMPORARILY_UNAVAILABLE       MmsDataAccessError = C.DATA_ACCESS_ERROR_TEMPORARILY_UNAVAILABLE
-	DATA_ACCESS_ERROR_OBJECT_ACCESS_DENIED          MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_ACCESS_DENIED
-	DATA_ACCESS_ERROR_OBJECT_UNDEFINED              MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_UNDEFINED
-	DATA_ACCESS_ERROR_INVALID_ADDRESS               MmsDataAccessError = C.DATA_ACCESS_ERROR_INVALID_ADDRESS
-	DATA_ACCESS_ERROR_TYPE_UNSUPPORTED              MmsDataAccessError = C.DATA_ACCESS_ERROR_TYPE_UNSUPPORTED
-	DATA_ACCESS_ERROR_TYPE_INCONSISTENT             MmsDataAccessError = C.DATA_ACCESS_ERROR_TYPE_INCONSISTENT
-	DATA_ACCESS_ERROR_OBJECT_ATTRIBUTE_INCONSISTENT MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_ATTRIBUTE_INCONSISTENT
-	DATA_ACCESS_ERROR_OBJECT_ACCESS_UNSUPPORTED     MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_ACCESS_UNSUPPORTED
-	DATA_ACCESS_ERROR_OBJECT_NONE_EXISTENT          MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_NONE_EXISTENT
-	DATA_ACCESS_ERROR_OBJECT_VALUE_INVALID          MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_VALUE_INVALID
-	DATA_ACCESS_ERROR_UNKNOWN                       MmsDataAccessError = C.DATA_ACCESS_ERROR_UNKNOWN
+	DATA_ACCESS_ERROR_SUCCESS_NO_UPDATE             MmsDataAccessError = C.DATA_ACCESS_ERROR_SUCCESS_NO_UPDATE             // Success with no update
+	DATA_ACCESS_ERROR_NO_RESPONSE                   MmsDataAccessError = C.DATA_ACCESS_ERROR_NO_RESPONSE                   // No response (server internal)
+	DATA_ACCESS_ERROR_SUCCESS                       MmsDataAccessError = C.DATA_ACCESS_ERROR_SUCCESS                       // Success
+	DATA_ACCESS_ERROR_OBJECT_INVALIDATED            MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_INVALIDATED            // Object invalidated
+	DATA_ACCESS_ERROR_HARDWARE_FAULT                MmsDataAccessError = C.DATA_ACCESS_ERROR_HARDWARE_FAULT                // Hardware fault
+	DATA_ACCESS_ERROR_TEMPORARILY_UNAVAILABLE       MmsDataAccessError = C.DATA_ACCESS_ERROR_TEMPORARILY_UNAVAILABLE       // Temporarily unavailable
+	DATA_ACCESS_ERROR_OBJECT_ACCESS_DENIED          MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_ACCESS_DENIED          // Object access denied
+	DATA_ACCESS_ERROR_OBJECT_UNDEFINED              MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_UNDEFINED              // Object undefined
+	DATA_ACCESS_ERROR_INVALID_ADDRESS               MmsDataAccessError = C.DATA_ACCESS_ERROR_INVALID_ADDRESS               // Invalid address
+	DATA_ACCESS_ERROR_TYPE_UNSUPPORTED              MmsDataAccessError = C.DATA_ACCESS_ERROR_TYPE_UNSUPPORTED              // Type unsupported
+	DATA_ACCESS_ERROR_TYPE_INCONSISTENT             MmsDataAccessError = C.DATA_ACCESS_ERROR_TYPE_INCONSISTENT             // Type inconsistent
+	DATA_ACCESS_ERROR_OBJECT_ATTRIBUTE_INCONSISTENT MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_ATTRIBUTE_INCONSISTENT // Object attribute inconsistent
+	DATA_ACCESS_ERROR_OBJECT_ACCESS_UNSUPPORTED     MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_ACCESS_UNSUPPORTED     // Object access unsupported
+	DATA_ACCESS_ERROR_OBJECT_NONE_EXISTENT          MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_NONE_EXISTENT          // Object non-existent
+	DATA_ACCESS_ERROR_OBJECT_VALUE_INVALID          MmsDataAccessError = C.DATA_ACCESS_ERROR_OBJECT_VALUE_INVALID          // Object value invalid
+	DATA_ACCESS_ERROR_UNKNOWN                       MmsDataAccessError = C.DATA_ACCESS_ERROR_UNKNOWN                       // Unknown error
 )
 
+// MmsValue represents a complex value type for MMS Client API.
+// It provides methods to work with various MMS data types including arrays, structures, integers, floats, strings, etc.
 type MmsValue struct {
 	ctx *C.MmsValue
 }
 
+// MmsValueCreateArray creates an array and initializes elements with default values.
+// elementType: type description for the elements of the new array
+// size: the size of the new array
+// Returns: a newly created array instance
 func MmsValueCreateArray(elementType *MmsVariableSpecification, size int) *MmsValue {
 	return &MmsValue{ctx: C.MmsValue_createArray(elementType.ctx, C.int(size))}
 }
 
+// MmsValueCreateEmptyArray creates an empty array.
+// size: the size of the new array
+// Returns: a newly created empty array instance
 func MmsValueCreateEmptyArray(size int) *MmsValue {
 	return &MmsValue{ctx: C.MmsValue_createEmptyArray(C.int(size))}
 }
 
+// GetArraySize gets the size of an array.
+// The MmsValue instance must be of type MMS_ARRAY.
+// Returns: the size of the array
 func (x *MmsValue) GetArraySize() uint32 {
 	return uint32(C.MmsValue_getArraySize(x.ctx))
 }
 
+// GetElement gets an element of an array or structure.
+// The MmsValue instance must be of type MMS_ARRAY or MMS_STRUCTURE.
+// index: index of the requested array or structure element
+// Returns: the element object
 func (x *MmsValue) GetElement(index uint32) *MmsValue {
 	return &MmsValue{ctx: C.MmsValue_getElement(x.ctx, C.int(index))}
 }
 
+// SetElement sets an element of a complex type.
+// NOTE: If the element already exists it will simply be replaced by the provided new value.
+// The caller is responsible to free the replaced value.
+// The MmsValue instance must be of type MMS_STRUCTURE or MMS_ARRAY.
+// index: the index of the element to set/replace
+// elementValue: the (new) value of the element
 func (x *MmsValue) SetElement(index uint32, element *MmsValue) {
 	C.MmsValue_setElement(x.ctx, C.int(index), element.ctx)
 }
 
+// GetDataAccessError gets the data access error of an MmsValue object.
+// Returns: the data access error code
 func (x *MmsValue) GetDataAccessError() MmsDataAccessError {
 	return MmsDataAccessError(C.MmsValue_getDataAccessError(x.ctx))
 }
 
+// ToInt64 gets the int64_t value of an MmsValue object.
+// The MmsValue instance must be of type MMS_INTEGER or MMS_UNSIGNED.
+// Returns: signed 64 bit integer
 func (x *MmsValue) ToInt64() int64 {
 	return int64(C.MmsValue_toInt64(x.ctx))
 }
 
+// ToInt32 gets the int32_t value of an MmsValue object.
+// The MmsValue instance must be of type MMS_INTEGER or MMS_UNSIGNED.
+// Returns: signed 32 bit integer
 func (x *MmsValue) ToInt32() int32 {
 	return int32(C.MmsValue_toInt32(x.ctx))
 }
 
+// ToUint32 gets the uint32_t value of an MmsValue object.
+// The MmsValue instance must be of type MMS_INTEGER or MMS_UNSIGNED.
+// Returns: unsigned 32 bit integer
 func (x *MmsValue) ToUint32() uint32 {
 	return uint32(C.MmsValue_toUint32(x.ctx))
 }
 
+// ToDouble gets the double value of an MmsValue object.
+// The MmsValue instance must be of type MMS_FLOAT.
+// Returns: 64 bit floating point value
 func (x *MmsValue) ToDouble() float64 {
 	return float64(C.MmsValue_toDouble(x.ctx))
 }
 
+// ToFloat gets the float value of an MmsValue object.
+// The MmsValue instance must be of type MMS_FLOAT.
+// Returns: 32 bit floating point value
 func (x *MmsValue) ToFloat() float32 {
 	return float32(C.MmsValue_toFloat(x.ctx))
 }
 
+// ToUnixTimestamp gets the unix timestamp of an MmsValue object of type MMS_UTCTIME.
+// The MmsValue instance must be of type MMS_UTC_TIME.
+// Returns: unix timestamp of the MMS_UTCTIME variable
 func (x *MmsValue) ToUnixTimestamp() uint32 {
 	return uint32(C.MmsValue_toUnixTimestamp(x.ctx))
 }
 
+// SetFloat sets the float value of an MmsValue object.
+// The MmsValue instance must be of type MMS_FLOAT.
+// newFloatValue: the new float value to set
 func (x *MmsValue) SetFloat(value float32) {
 	C.MmsValue_setFloat(x.ctx, C.float(value))
 }
 
+// SetDouble sets the double value of an MmsValue object.
+// The MmsValue instance must be of type MMS_FLOAT.
+// newFloatValue: the new double value to set
 func (x *MmsValue) SetDouble(value float64) {
 	C.MmsValue_setDouble(x.ctx, C.double(value))
 }
 
+// SetInt8 sets the Int8 value of an MmsValue object.
+// The MmsValue instance must be of type MMS_INTEGER.
+// integer: the new value to set
 func (x *MmsValue) SetInt8(value int8) {
 	C.MmsValue_setInt8(x.ctx, C.int8_t(value))
 }
 
+// SetInt16 sets the Int16 value of an MmsValue object.
+// The MmsValue instance must be of type MMS_INTEGER.
+// integer: the new value to set
 func (x *MmsValue) SetInt16(value int16) {
 	C.MmsValue_setInt16(x.ctx, C.int16_t(value))
 }
 
+// SetInt32 sets the Int32 value of an MmsValue object.
+// The MmsValue instance must be of type MMS_INTEGER.
+// integer: the new value to set
 func (x *MmsValue) SetInt32(value int32) {
 	C.MmsValue_setInt32(x.ctx, C.int32_t(value))
 }
 
+// SetInt64 sets the Int64 value of an MmsValue object.
+// The MmsValue instance must be of type MMS_INTEGER.
+// integer: the new value to set
 func (x *MmsValue) SetInt64(value int64) {
 	C.MmsValue_setInt64(x.ctx, C.int64_t(value))
 }
 
+// SetUint8 sets the UInt8 value of an MmsValue object.
+// The MmsValue instance must be of type MMS_UNSIGNED.
+// integer: the new value to set
 func (x *MmsValue) SetUint8(value uint8) {
 	C.MmsValue_setUint8(x.ctx, C.uint8_t(value))
 }
 
+// SetUint16 sets the UInt16 value of an MmsValue object.
+// The MmsValue instance must be of type MMS_UNSIGNED.
+// integer: the new value to set
 func (x *MmsValue) SetUint16(value uint16) {
 	C.MmsValue_setUint16(x.ctx, C.uint16_t(value))
 }
 
+// SetUint32 sets the UInt32 value of an MmsValue object.
+// The MmsValue instance must be of type MMS_UNSIGNED.
+// integer: the new value to set
 func (x *MmsValue) SetUint32(value uint32) {
 	C.MmsValue_setUint32(x.ctx, C.uint32_t(value))
 }
 
+// SetBoolean sets the bool value of an MmsValue object.
+// The MmsValue instance must be of type MMS_BOOLEAN.
+// boolValue: a bool value to set
 func (x *MmsValue) SetBoolean(value bool) {
 	C.MmsValue_setBoolean(x.ctx, C.bool(value))
 }
 
+// GetBoolean gets the bool value of an MmsValue object.
+// The MmsValue instance must be of type MMS_BOOLEAN.
+// Returns: the MmsValue value as bool value
 func (x *MmsValue) GetBoolean() bool {
 	return bool(C.MmsValue_getBoolean(x.ctx))
 }
 
+// ToString returns the value of an MMS_VISIBLE_STRING object as C string.
+// The MmsValue instance must be of type MMS_VISIBLE_STRING or MMS_STRING.
+// Returns: the string value as 0 terminated C string
 func (x *MmsValue) ToString() string {
 	return C.GoString(C.MmsValue_toString(x.ctx))
 }
 
+// GetStringSize returns the (maximum) length of the string.
+// NOTE: this function returns the amount of memory allocated for the string buffer - 1.
+// The MmsValue instance must be of type MMS_VISIBLE_STRING or MMS_STRING.
+// Returns: the maximum length of the string
 func (x *MmsValue) GetStringSize() int {
 	return int(C.MmsValue_getStringSize(x.ctx))
 }
 
+// SetVisibleString sets the value of an MMS_VISIBLE_STRING object.
+// The MmsValue instance must be of type MMS_VISIBLE_STRING or MMS_STRING.
+// string: the new string value to set
 func (x *MmsValue) SetVisibleString(value string) {
 	cval := C.CString(value)
 	defer C.free(unsafe.Pointer(cval))
@@ -169,10 +262,16 @@ func (x *MmsValue) DeleteAllBitStringBits() {
 	C.MmsValue_deleteAllBitStringBits(x.ctx)
 }
 
+// GetBitStringSize gets the number of bits in a bit string.
+// The MmsValue instance must be of type MMS_BIT_STRING.
+// Returns: the number of bits in the bit string
 func (x *MmsValue) GetBitStringSize() int {
 	return int(C.MmsValue_getBitStringSize(x.ctx))
 }
 
+// GetBitStringByteSize gets the number of bytes required by this bit string.
+// The MmsValue instance must be of type MMS_BIT_STRING.
+// Returns: the number of bytes required for the bit string
 func (x *MmsValue) GetBitStringByteSize() int {
 	return int(C.MmsValue_getBitStringByteSize(x.ctx))
 }
@@ -225,6 +324,9 @@ func (x *MmsValue) GetUtcTimeBuffer() [8]byte {
 	return *(*[8]byte)(unsafe.Pointer(buf))
 }
 
+// GetUtcTimeInMs gets the UTC time value in milliseconds.
+// The MmsValue instance must be of type MMS_UTC_TIME.
+// Returns: the UTC time value in milliseconds
 func (x *MmsValue) GetUtcTimeInMs() uint64 {
 	return uint64(C.MmsValue_getUtcTimeInMs(x.ctx))
 }
@@ -445,6 +547,10 @@ func (x *MmsValue) GetType() MmsType {
 	return MmsType(C.MmsValue_getType(x.ctx))
 }
 
+// GetSubElement gets a sub-element of an MmsValue object.
+// varSpec: the variable specification of the sub-element
+// mmsPath: the MMS path of the sub-element
+// Returns: the sub-element MmsValue object
 func (x *MmsValue) GetSubElement(varSpec *MmsVariableSpecification, mmsPath string) *MmsValue {
 	cstr := C.CString(mmsPath)
 	defer C.free(unsafe.Pointer(cstr))
@@ -480,6 +586,8 @@ func (x *MmsVariableSpecification) GetMaxEncodedSize() int {
 	return int(C.MmsVariableSpecification_getMaxEncodedSize(x.ctx))
 }
 
+// String returns the string representation of an MmsError.
+// Returns: the string representation of the MmsError
 func (x *MmsError) String() string {
 	return C.GoString(C.MmsError_toString(C.MmsError(*x)))
 }
