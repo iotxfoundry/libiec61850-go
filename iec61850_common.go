@@ -18,10 +18,27 @@ const (
 )
 
 type PhyComAddress struct {
-	VlanPriority uint8
-	VlanId       uint16
-	AppId        uint16
-	DstAddress   [6]uint8
+	ctx *C.PhyComAddress
+}
+
+func (x *PhyComAddress) VlanPriority() uint8 {
+	return uint8(x.ctx.vlanPriority)
+}
+
+func (x *PhyComAddress) VlanId() uint16 {
+	return uint16(x.ctx.vlanId)
+}
+
+func (x *PhyComAddress) AppId() uint16 {
+	return uint16(x.ctx.appId)
+}
+
+func (x *PhyComAddress) DstAddress() [6]uint8 {
+	res := [6]uint8{}
+	for i := 0; i < 6; i++ {
+		res[i] = uint8(x.ctx.dstAddress[i])
+	}
+	return res
 }
 
 type ACSIClass int32
@@ -311,7 +328,7 @@ func TimestampCreate() *Timestamp {
 	return &Timestamp{ctx: C.Timestamp_create()}
 }
 
-func TimestampFromByteArray(byteArray []byte) *Timestamp {
+func NewTimestampFromByteArray(byteArray []byte) *Timestamp {
 	array := C.CBytes(byteArray)
 	defer C.free(unsafe.Pointer(array))
 	return &Timestamp{ctx: C.Timestamp_createFromByteArray((*C.uint8_t)(array))}

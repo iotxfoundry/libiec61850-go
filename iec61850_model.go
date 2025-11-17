@@ -8,176 +8,513 @@ package libiec61850go
 import "C"
 
 type ModelNode struct {
-	ModelType  ModelNodeType
-	Name       string
-	Parent     *ModelNode
-	Sibling    *ModelNode
-	FirstChild *ModelNode
+	ctx *C.ModelNode
+}
+
+func (x *ModelNode) ModelType() ModelNodeType {
+	return ModelNodeType(x.ctx.modelType)
+}
+
+func (x *ModelNode) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *ModelNode) Parent() *ModelNode {
+	return &ModelNode{ctx: x.ctx.parent}
+}
+
+func (x *ModelNode) Sibling() *ModelNode {
+	return &ModelNode{ctx: x.ctx.sibling}
+}
+
+func (x *ModelNode) FirstChild() *ModelNode {
+	return &ModelNode{ctx: x.ctx.firstChild}
 }
 
 type DataAttribute struct {
-	ModelType  ModelNodeType
-	Name       string
-	Parent     *ModelNode
-	Sibling    *ModelNode
-	FirstChild *ModelNode
+	ctx *C.DataAttribute
+}
 
-	ElementCount int /* value > 0 if this is an array */
-	ArrayIndex   int /* value > -1 when this is an array element */
+func (x *DataAttribute) ModelType() ModelNodeType {
+	return ModelNodeType(x.ctx.modelType)
+}
 
-	Fc   FunctionalConstraint
-	Type DataAttributeType
+func (x *DataAttribute) Name() string {
+	return C.GoString(x.ctx.name)
+}
 
-	TriggerOptions uint8 /* TRG_OPT_DATA_CHANGED | TRG_OPT_QUALITY_CHANGED | TRG_OPT_DATA_UPDATE */
+func (x *DataAttribute) Parent() *ModelNode {
+	return &ModelNode{ctx: x.ctx.parent}
+}
 
-	MmsValue *MmsValue
+func (x *DataAttribute) Sibling() *ModelNode {
+	return &ModelNode{ctx: x.ctx.sibling}
+}
 
-	Addr uint32 /* TODO remove in version 2.0 */
+func (x *DataAttribute) FirstChild() *ModelNode {
+	return &ModelNode{ctx: x.ctx.firstChild}
+}
+
+func (x *DataAttribute) ElementCount() int {
+	return int(x.ctx.elementCount)
+}
+
+func (x *DataAttribute) ArrayIndex() int {
+	return int(x.ctx.arrayIndex)
+}
+
+func (x *DataAttribute) Fc() FunctionalConstraint {
+	return FunctionalConstraint(x.ctx.fc)
+}
+
+func (x *DataAttribute) Type() DataAttributeType {
+	return DataAttributeType(x.ctx._type)
+}
+
+func (x *DataAttribute) TriggerOptions() uint8 {
+	return uint8(x.ctx.triggerOptions)
+}
+
+func (x *DataAttribute) MmsValue() *MmsValue {
+	return &MmsValue{ctx: x.ctx.mmsValue}
+}
+
+func (x *DataAttribute) Addr() uint32 {
+	return uint32(x.ctx.sAddr)
 }
 
 type DataObject struct {
-	ModelType  ModelNodeType
-	Name       string
-	Parent     *ModelNode
-	Sibling    *ModelNode
-	FirstChild *ModelNode
+	ctx *C.DataObject
+}
 
-	ElementCount int /* value > 0 if this is an array */
-	ArrayIndex   int /* value > -1 when this is an array element */
+func (x *DataObject) ModelType() ModelNodeType {
+	return ModelNodeType(x.ctx.modelType)
+}
+
+func (x *DataObject) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *DataObject) Parent() *ModelNode {
+	return &ModelNode{ctx: x.ctx.parent}
+}
+
+func (x *DataObject) Sibling() *ModelNode {
+	return &ModelNode{ctx: x.ctx.sibling}
+}
+
+func (x *DataObject) FirstChild() *ModelNode {
+	return &ModelNode{ctx: x.ctx.firstChild}
+}
+
+func (x *DataObject) ElementCount() int {
+	return int(x.ctx.elementCount)
+}
+
+func (x *DataObject) ArrayIndex() int {
+	return int(x.ctx.arrayIndex)
 }
 
 type LogicalNode struct {
-	ModelType  ModelNodeType
-	Name       string
-	Parent     *ModelNode
-	Sibling    *ModelNode
-	FirstChild *ModelNode
+	ctx *C.LogicalNode
+}
+
+func (x *LogicalNode) ModelType() ModelNodeType {
+	return ModelNodeType(x.ctx.modelType)
+}
+
+func (x *LogicalNode) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *LogicalNode) Parent() *ModelNode {
+	return &ModelNode{ctx: x.ctx.parent}
+}
+
+func (x *LogicalNode) Sibling() *ModelNode {
+	return &ModelNode{ctx: x.ctx.sibling}
+}
+
+func (x *LogicalNode) FirstChild() *ModelNode {
+	return &ModelNode{ctx: x.ctx.firstChild}
 }
 
 type LogicalDevice struct {
-	ModelType  ModelNodeType
-	Name       string
-	Parent     *ModelNode
-	Sibling    *ModelNode
-	FirstChild *ModelNode
-	LdName     string /* ldName (when using functional naming) */
+	ctx *C.LogicalDevice
+}
+
+func (x *LogicalDevice) ModelType() ModelNodeType {
+	return ModelNodeType(x.ctx.modelType)
+}
+
+func (x *LogicalDevice) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *LogicalDevice) Parent() *ModelNode {
+	return &ModelNode{ctx: x.ctx.parent}
+}
+
+func (x *LogicalDevice) Sibling() *ModelNode {
+	return &ModelNode{ctx: x.ctx.sibling}
+}
+
+func (x *LogicalDevice) FirstChild() *ModelNode {
+	return &ModelNode{ctx: x.ctx.firstChild}
+}
+
+func (x *LogicalDevice) LdName() string {
+	return C.GoString(x.ctx.ldName)
 }
 
 type IedModel struct {
-	Name        string
-	FirstChild  *LogicalDevice
-	DataSets    []DataSet
-	Rcbs        []ReportControlBlock
-	GseCBs      []GSEControlBlock
-	SvCBs       []SVControlBlock
-	Sgcbs       []SettingGroupControlBlock
-	Lcbs        []LogControlBlock
-	Logs        []Log
-	Initializer func()
+	ctx *C.IedModel
+	// Name        string
+	// FirstChild  *LogicalDevice
+	// DataSets    []DataSet
+	// Rcbs        []ReportControlBlock
+	// GseCBs      []GSEControlBlock
+	// SvCBs       []SVControlBlock
+	// Sgcbs       []SettingGroupControlBlock
+	// Lcbs        []LogControlBlock
+	// Logs        []Log
+	// Initializer func()
+}
+
+func (x *IedModel) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *IedModel) FirstChild() *LogicalDevice {
+	return &LogicalDevice{ctx: x.ctx.firstChild}
+}
+
+func (x *IedModel) DataSets() *DataSet {
+	return &DataSet{ctx: x.ctx.dataSets}
+}
+
+func (x *IedModel) Rcbs() *ReportControlBlock {
+	return &ReportControlBlock{ctx: x.ctx.rcbs}
+}
+
+func (x *IedModel) GseCBs() *GSEControlBlock {
+	return &GSEControlBlock{ctx: x.ctx.gseCBs}
+}
+
+func (x *IedModel) SvCBs() *SVControlBlock {
+	return &SVControlBlock{ctx: x.ctx.svCBs}
+}
+
+func (x *IedModel) Sgcbs() *SettingGroupControlBlock {
+	return &SettingGroupControlBlock{ctx: x.ctx.sgcbs}
+}
+
+func (x *IedModel) Lcbs() *LogControlBlock {
+	return &LogControlBlock{ctx: x.ctx.lcbs}
+}
+
+func (x *IedModel) Logs() *Log {
+	return &Log{ctx: x.ctx.logs}
+}
+
+func (x *IedModel) Initializer() func() {
+	return x.ctx.initializer
 }
 
 type DataSet struct {
-	LogicalDeviceName string /* logical device instance name */
-	Name              string /* eg. MMXU1$dataset1 */
-	Fcdas             []DataSetEntry
-	Sibling           *DataSet
+	ctx *C.DataSet
+}
+
+func (x *DataSet) LogicalDeviceName() string {
+	return C.GoString(x.ctx.logicalDeviceName)
+}
+
+func (x *DataSet) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *DataSet) Fcdas() *DataSetEntry {
+	return &DataSetEntry{ctx: x.ctx.fcdas}
+}
+
+func (x *DataSet) Sibling() *DataSet {
+	return &DataSet{ctx: x.ctx.sibling}
 }
 
 type DataSetEntry struct {
-	LogicalDeviceName            string /* logical device instance name */
-	IsLDNameDynamicallyAllocated bool
-	VariableName                 string
-	Index                        int
-	ComponentName                string
-	Value                        *MmsValue
-	Sibling                      *DataSetEntry
+	ctx *C.DataSetEntry
+}
+
+func (x *DataSetEntry) LogicalDeviceName() string {
+	return C.GoString(x.ctx.logicalDeviceName)
+}
+
+func (x *DataSetEntry) IsLDNameDynamicallyAllocated() bool {
+	return bool(x.ctx.isLDNameDynamicallyAllocated)
+}
+
+func (x *DataSetEntry) Value() *MmsValue {
+	return &MmsValue{ctx: x.ctx.value}
+}
+
+func (x *DataSetEntry) Sibling() *DataSetEntry {
+	return &DataSetEntry{ctx: x.ctx.sibling}
+}
+
+func (x *DataSetEntry) Index() int {
+	return int(x.ctx.index)
+}
+
+func (x *DataSetEntry) ComponentName() string {
+	return C.GoString(x.ctx.componentName)
+}
+
+func (x *DataSetEntry) VariableName() string {
+	return C.GoString(x.ctx.variableName)
 }
 
 type ReportControlBlock struct {
-	Parent      *LogicalNode
-	Name        string
-	RptId       string
-	Buffered    bool
-	DataSetName string /* pre loaded with relative name in logical node */
+	ctx *C.ReportControlBlock
+}
 
-	ConfRef    uint32 /* ConfRef - configuration revision */
-	TrgOps     uint8  /* TrgOps - trigger conditions */
-	OptFlds    uint8  /* OptFlds */
-	BufferTime uint32 /* BufTm - time to buffer events until a report is generated */
-	IntPeriod  uint32 /* IntgPd - integrity period */
+func (x *ReportControlBlock) Parent() *LogicalNode {
+	return &LogicalNode{ctx: x.ctx.parent}
+}
 
-	/* type (first byte) and address of the pre-configured client
-	   type can be one of (0 - no reservation, 4 - IPv4 client, 6 - IPv6 client) */
-	ClientReservation [17]uint8 /* clientReservation */
+func (x *ReportControlBlock) RptId() string {
+	return C.GoString(x.ctx.rptId)
+}
 
-	/*
-	 * next control block in list or NULL if this is the last entry
-	 * at runtime reuse as pointer to ReportControl instance!
-	 **/
-	Sibling *ReportControlBlock
+func (x *ReportControlBlock) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *ReportControlBlock) Buffered() bool {
+	return bool(x.ctx.buffered)
+}
+
+func (x *ReportControlBlock) DataSetName() string {
+	return C.GoString(x.ctx.dataSetName)
+}
+
+func (x *ReportControlBlock) ConfRef() uint32 {
+	return uint32(x.ctx.confRef)
+}
+
+func (x *ReportControlBlock) TrgOps() uint8 {
+	return uint8(x.ctx.trgOps)
+}
+
+func (x *ReportControlBlock) OptFlds() uint8 {
+	return uint8(x.ctx.options)
+}
+
+func (x *ReportControlBlock) BufferTime() uint32 {
+	return uint32(x.ctx.bufferTime)
+}
+
+func (x *ReportControlBlock) IntPeriod() uint32 {
+	return uint32(x.ctx.intPeriod)
+}
+
+func (x *ReportControlBlock) ClientReservation() [17]uint8 {
+	res := [17]uint8{}
+	for i := 0; i < 17; i++ {
+		res[i] = uint8(x.ctx.clientReservation[i])
+	}
+	return res
+}
+
+func (x *ReportControlBlock) Sibling() *ReportControlBlock {
+	return &ReportControlBlock{ctx: x.ctx.sibling}
 }
 
 type SettingGroupControlBlock struct {
-	Parent    *LogicalNode
-	Name      string
-	ActSG     uint8 /* value from SCL file */
-	NumOfSGs  uint8 /* value from SCL file */
-	EditSG    uint8 /* 0 at power-up */
-	CnfEdit   bool  /* false at power-up */
-	Timestamp uint64
-	ResvTms   uint16 /* value from SCL file */
+	ctx *C.SettingGroupControlBlock
+}
 
-	/*
-	 * next control block in list or NULL if this is the last entry
-	 * at runtime reuse as pointer to SettingGroupControl instance!
-	 **/
-	Sibling *SettingGroupControlBlock
+func (x *SettingGroupControlBlock) Parent() *LogicalNode {
+	return &LogicalNode{ctx: x.ctx.parent}
+}
+
+func (x *SettingGroupControlBlock) ActSG() uint8 {
+	return uint8(x.ctx.actSG)
+}
+
+func (x *SettingGroupControlBlock) NumOfSGs() uint8 {
+	return uint8(x.ctx.numOfSGs)
+}
+
+func (x *SettingGroupControlBlock) EditSG() uint8 {
+	return uint8(x.ctx.editSG)
+}
+
+func (x *SettingGroupControlBlock) CnfEdit() bool {
+	return bool(x.ctx.cnfEdit)
+}
+
+func (x *SettingGroupControlBlock) Timestamp() uint64 {
+	return uint64(x.ctx.timestamp)
+}
+
+func (x *SettingGroupControlBlock) ResvTms() uint16 {
+	return uint16(x.ctx.resvTms)
+}
+
+func (x *SettingGroupControlBlock) Sibling() *SettingGroupControlBlock {
+	return &SettingGroupControlBlock{ctx: x.ctx.sibling}
 }
 
 type GSEControlBlock struct {
-	Parent      *LogicalNode
-	Name        string
-	AppId       string
-	DataSetName string           /* pre loaded with relative name in logical node */
-	ConfRev     uint32           /* ConfRev - configuration revision */
-	FixedOffs   bool             /* fixed offsets */
-	Address     *PhyComAddress   /* GSE communication parameters */
-	MinTime     int32            /* optional minTime parameter --> -1 if not present */
-	MaxTime     int32            /* optional maxTime parameter --> -1 if not present */
-	Sibling     *GSEControlBlock /* next control block in list or NULL if this is the last entry */
+	ctx *C.GSEControlBlock
+}
+
+func (x *GSEControlBlock) Parent() *LogicalNode {
+	return &LogicalNode{ctx: x.ctx.parent}
+}
+
+func (x *GSEControlBlock) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *GSEControlBlock) AppId() string {
+	return C.GoString(x.ctx.appId)
+}
+
+func (x *GSEControlBlock) DataSetName() string {
+	return C.GoString(x.ctx.dataSetName)
+}
+
+func (x *GSEControlBlock) ConfRev() uint32 {
+	return uint32(x.ctx.confRev)
+}
+
+func (x *GSEControlBlock) FixedOffs() bool {
+	return bool(x.ctx.fixedOffs)
+}
+
+func (x *GSEControlBlock) Address() *PhyComAddress {
+	return &PhyComAddress{ctx: x.ctx.address}
+}
+
+func (x *GSEControlBlock) MinTime() int32 {
+	return int32(x.ctx.minTime)
+}
+
+func (x *GSEControlBlock) MaxTime() int32 {
+	return int32(x.ctx.maxTime)
+}
+
+func (x *GSEControlBlock) Sibling() *GSEControlBlock {
+	return &GSEControlBlock{ctx: x.ctx.sibling}
 }
 
 type SVControlBlock struct {
-	Parent      *LogicalNode
-	Name        string
-	SvId        string          /* MsvUD/UsvID */
-	DataSetName string          /* pre loaded with relative name in logical node */
-	OptFlds     uint8           /* OptFlds */
-	SmpMod      uint8           /* SmpMod */
-	SmpRate     uint16          /* SmpRate */
-	ConfRev     uint32          /* ConfRev - configuration revision */
-	DstAddress  *PhyComAddress  /* SV communication parameters */
-	IsUnicast   bool            /* true if unicast */
-	NoASDU      int             /* number of ASDU in a message */
-	Sibling     *SVControlBlock /* next control block in list or NULL if this is the last entry */
+	ctx *C.SVControlBlock
+}
+
+func (x *SVControlBlock) Parent() *LogicalNode {
+	return &LogicalNode{ctx: x.ctx.parent}
+}
+
+func (x *SVControlBlock) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *SVControlBlock) SvId() string {
+	return C.GoString(x.ctx.svId)
+}
+
+func (x *SVControlBlock) DataSetName() string {
+	return C.GoString(x.ctx.dataSetName)
+}
+
+func (x *SVControlBlock) OptFlds() uint8 {
+	return uint8(x.ctx.optFlds)
+}
+
+func (x *SVControlBlock) SmpMod() uint8 {
+	return uint8(x.ctx.smpMod)
+}
+
+func (x *SVControlBlock) SmpRate() uint16 {
+	return uint16(x.ctx.smpRate)
+}
+
+func (x *SVControlBlock) ConfRev() uint32 {
+	return uint32(x.ctx.confRev)
+}
+
+func (x *SVControlBlock) DstAddress() *PhyComAddress {
+	return &PhyComAddress{ctx: x.ctx.dstAddress}
+}
+
+func (x *SVControlBlock) IsUnicast() bool {
+	return bool(x.ctx.isUnicast)
+}
+
+func (x *SVControlBlock) NoASDU() int {
+	return int(x.ctx.noASDU)
+}
+
+func (x *SVControlBlock) Sibling() *SVControlBlock {
+	return &SVControlBlock{ctx: x.ctx.sibling}
 }
 
 type LogControlBlock struct {
-	Parent      *LogicalNode
-	Name        string
-	DataSetName string           /* pre loaded with relative name in logical node */
-	LogRef      string           /* object reference to the journal */
-	TrgOps      uint8            /* TrgOps - trigger conditions */
-	IntPeriod   uint32           /* IntgPd - integrity period */
-	LogEna      bool             /* enable log by default */
-	ReasonCode  bool             /* include reason code in log */
-	Sibling     *LogControlBlock /* next control block in list or NULL if this is the last entry */
+	ctx *C.LogControlBlock
+}
+
+func (x *LogControlBlock) Parent() *LogicalNode {
+	return &LogicalNode{ctx: x.ctx.parent}
+}
+
+func (x *LogControlBlock) Sibling() *LogControlBlock {
+	return &LogControlBlock{ctx: x.ctx.sibling}
+}
+
+func (x *LogControlBlock) Name() string {
+	return C.GoString(x.ctx.name)
+}
+
+func (x *LogControlBlock) LogRef() string {
+	return C.GoString(x.ctx.logRef)
+}
+
+func (x *LogControlBlock) TrgOps() uint8 {
+	return uint8(x.ctx.trgOps)
+}
+
+func (x *LogControlBlock) IntPeriod() uint32 {
+	return uint32(x.ctx.intPeriod)
+}
+
+func (x *LogControlBlock) LogEna() bool {
+	return bool(x.ctx.logEna)
+}
+
+func (x *LogControlBlock) ReasonCode() bool {
+	return bool(x.ctx.reasonCode)
+}
+
+func (x *LogControlBlock) DataSetName() string {
+	return C.GoString(x.ctx.dataSetName)
 }
 
 type Log struct {
-	Parent  *LogicalNode
-	Name    string
-	Sibling *Log
+	ctx *C.Log
+}
+
+func (x *Log) Parent() *LogicalNode {
+	return &LogicalNode{ctx: x.ctx.parent}
+}
+
+func (x *Log) Sibling() *Log {
+	return &Log{ctx: x.ctx.sibling}
+}
+
+func (x *Log) Name() string {
+	return C.GoString(x.ctx.name)
 }
 
 type DataAttributeType int32
