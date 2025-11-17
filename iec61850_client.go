@@ -14,6 +14,14 @@ extern void fReportCallbackFunctionGo(void* parameter, ClientReport report);
 extern void fReadDataSetHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, ClientDataSet dataSet);
 extern void fGetDataSetDirectoryHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, LinkedList dataSetDirectory, bool isDeletable);
 extern void fWriteDataSetHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, LinkedList accessResults);
+extern void fControlActionHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, ControlActionType type_, bool success);
+extern void fCommandTerminationHandlerGo(void* parameter, ControlObjectClient controlClient);
+extern void fGetNameListHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, LinkedList nameList, bool moreFollows);
+extern void fGetVariableSpecificationHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, MmsVariableSpecification* variableSpecification);
+extern void fQueryLogHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, LinkedList journalEntries, bool moreFollows);
+extern void fFileDirectoryEntryHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, char* filename, uint32_t size, uint64_t lastModfified, bool moreFollows);
+extern bool fIedClientGetFileHandlerGo(void* parameter, uint8_t* buffer, uint32_t bytesRead);
+extern bool fGetFileAsyncHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, uint32_t originalInvokeId, uint8_t* buffer, uint32_t bytesRead, bool moreFollows);
 */
 import "C"
 import (
@@ -1327,4 +1335,555 @@ func (x *ClientDataSet) GetDataSetSize() int {
 
 type ControlObjectClient struct {
 	ctx C.ControlObjectClient
+}
+
+func ControlObjectClientCreate(objectReference string, connection *IedConnection) *ControlObjectClient {
+	cid := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cid))
+	return &ControlObjectClient{ctx: C.ControlObjectClient_create(cid, connection.ctx)}
+}
+
+func ControlObjectClientCreateEx(objectReference string, connection *IedConnection, ctlModel ControlModel, controlObjectSpec *MmsVariableSpecification) *ControlObjectClient {
+	cid := C.CString(objectReference)
+	defer C.free(unsafe.Pointer(cid))
+	return &ControlObjectClient{ctx: C.ControlObjectClient_createEx(cid, connection.ctx, C.ControlModel(ctlModel), controlObjectSpec.ctx)}
+}
+
+func (x *ControlObjectClient) Destroy() {
+	C.ControlObjectClient_destroy(x.ctx)
+}
+
+type ControlActionType int32
+
+const (
+	CONTROL_ACTION_TYPE_SELECT  ControlActionType = C.CONTROL_ACTION_TYPE_SELECT
+	CONTROL_ACTION_TYPE_OPERATE ControlActionType = C.CONTROL_ACTION_TYPE_OPERATE
+	CONTROL_ACTION_TYPE_CANCEL  ControlActionType = C.CONTROL_ACTION_TYPE_CANCEL
+)
+
+type ControlActionHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, type_ ControlActionType, success bool)
+
+var mapControlActionHandlers = sync.Map{}
+
+//export fControlActionHandlerGo
+func fControlActionHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, type_ C.ControlActionType, success C._Bool) {
+	mapControlActionHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(ControlActionHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), ControlActionType(type_), bool(success))
+		}
+		return true
+	})
+}
+
+func (x *ControlObjectClient) GetObjectReference() string {
+	return C.GoString(C.ControlObjectClient_getObjectReference(x.ctx))
+}
+
+func (x *ControlObjectClient) GetControlModel() ControlModel {
+	return ControlModel(C.ControlObjectClient_getControlModel(x.ctx))
+}
+
+func (x *ControlObjectClient) SetControlModel(ctlModel ControlModel) {
+	C.ControlObjectClient_setControlModel(x.ctx, C.ControlModel(ctlModel))
+}
+
+func (x *ControlObjectClient) ChangeServerControlModel(ctlModel ControlModel) {
+	C.ControlObjectClient_changeServerControlModel(x.ctx, C.ControlModel(ctlModel))
+}
+
+func (x *ControlObjectClient) GetCtlValType() MmsType {
+	return MmsType(C.ControlObjectClient_getCtlValType(x.ctx))
+}
+
+func (x *ControlObjectClient) GetLastError() IedClientError {
+	return IedClientError(C.ControlObjectClient_getLastError(x.ctx))
+}
+
+func (x *ControlObjectClient) Operate(ctlVal *MmsValue, operTime uint64) bool {
+	return bool(C.ControlObjectClient_operate(x.ctx, ctlVal.ctx, C.uint64_t(operTime)))
+}
+
+func (x *ControlObjectClient) Select() bool {
+	return bool(C.ControlObjectClient_select(x.ctx))
+}
+
+func (x *ControlObjectClient) SelectWithValue(ctlVal *MmsValue) bool {
+	return bool(C.ControlObjectClient_selectWithValue(x.ctx, ctlVal.ctx))
+}
+
+func (x *ControlObjectClient) Cancel() bool {
+	return bool(C.ControlObjectClient_cancel(x.ctx))
+}
+func (x *ControlObjectClient) OperateAsync(ctlVal *MmsValue, operTime uint64, handler ControlActionHandler, parameter unsafe.Pointer) (uint32, error) {
+	mapControlActionHandlers.Store(handler, handler)
+	defer mapControlActionHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.ControlObjectClient_operateAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), ctlVal.ctx, C.uint64_t(operTime),
+		(C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *ControlObjectClient) SelectAsync(handler ControlActionHandler, parameter unsafe.Pointer) (uint32, error) {
+	mapControlActionHandlers.Store(handler, handler)
+	defer mapControlActionHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.ControlObjectClient_selectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)),
+		(C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *ControlObjectClient) SelectWithValueAsync(ctlVal *MmsValue, handler ControlActionHandler, parameter unsafe.Pointer) (uint32, error) {
+	mapControlActionHandlers.Store(handler, handler)
+	defer mapControlActionHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.ControlObjectClient_selectWithValueAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), ctlVal.ctx, (C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *ControlObjectClient) CancelAsync(handler ControlActionHandler, parameter unsafe.Pointer) (uint32, error) {
+	mapControlActionHandlers.Store(handler, handler)
+	defer mapControlActionHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.ControlObjectClient_cancelAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)),
+		(C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *ControlObjectClient) GetLastApplError() *LastApplError {
+	ctx := C.ControlObjectClient_getLastApplError(x.ctx)
+	return &LastApplError{ctx: &ctx}
+}
+
+func (x *ControlObjectClient) SetTestMode(value bool) {
+	C.ControlObjectClient_setTestMode(x.ctx, C._Bool(value))
+}
+
+func (x *ControlObjectClient) SetOrigin(orIdent string, orCat int) {
+	C.ControlObjectClient_setOrigin(x.ctx, C.CString(orIdent), C.int(orCat))
+}
+
+func (x *ControlObjectClient) UseConstantT(useConstantT bool) {
+	C.ControlObjectClient_useConstantT(x.ctx, C._Bool(useConstantT))
+}
+
+// EnableInterlockCheck
+//
+// Deprecated: use ControlObjectClient_setInterlockCheck instead
+func (x *ControlObjectClient) EnableInterlockCheck() {
+	C.ControlObjectClient_enableInterlockCheck(x.ctx)
+}
+
+// EnableSynchroCheck
+//
+// Deprecated: use ControlObjectClient_setSynchroCheck instead
+func (x *ControlObjectClient) EnableSynchroCheck() {
+	C.ControlObjectClient_enableSynchroCheck(x.ctx)
+}
+
+// SetCtlNum
+//
+// Deprecated: Do not use (ctlNum is handled automatically by the library)! Intended for test purposes only.
+func (x *ControlObjectClient) SetCtlNum(ctlNum uint8) {
+	C.ControlObjectClient_setCtlNum(x.ctx, C.uint8_t(ctlNum))
+}
+
+func (x *ControlObjectClient) SetInterlockCheck(value bool) {
+	C.ControlObjectClient_setInterlockCheck(x.ctx, C._Bool(value))
+}
+
+func (x *ControlObjectClient) SetSynchroCheck(value bool) {
+	C.ControlObjectClient_setSynchroCheck(x.ctx, C._Bool(value))
+}
+
+type CommandTerminationHandler func(parameter unsafe.Pointer, controlClient *ControlObjectClient)
+
+var mapCommandTerminationHandlers = sync.Map{}
+
+//export fCommandTerminationHandlerGo
+func fCommandTerminationHandlerGo(parameter unsafe.Pointer, controlClient C.ControlObjectClient) {
+	mapCommandTerminationHandlers.Range(func(key, value interface{}) bool {
+		if fn, ok := value.(CommandTerminationHandler); ok {
+			fn(parameter, &ControlObjectClient{ctx: controlClient})
+		}
+		return true
+	})
+}
+
+func (x *ControlObjectClient) SetCommandTerminationHandler(handler CommandTerminationHandler, parameter unsafe.Pointer) {
+	mapCommandTerminationHandlers.Store(handler, handler)
+	defer mapCommandTerminationHandlers.Delete(handler)
+	C.ControlObjectClient_setCommandTerminationHandler(x.ctx, (C.CommandTerminationHandler)(C.fCommandTerminationHandlerGo), parameter)
+}
+
+func (x *IedConnection) GetDeviceModelFromServer() error {
+	err := IED_ERROR_OK
+	C.IedConnection_getDeviceModelFromServer(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
+	return IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalDeviceList() (*LinkedList, error) {
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getLogicalDeviceList(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetServerDirectory(getFileNames bool) (*LinkedList, error) {
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getServerDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), C._Bool(getFileNames))
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalDeviceDirectory(logicalDeviceName string) (*LinkedList, error) {
+	cstr := C.CString(logicalDeviceName)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getLogicalDeviceDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalNodeVariables(logicalNodeReference string) (*LinkedList, error) {
+	cstr := C.CString(logicalNodeReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getLogicalNodeVariables(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalNodeDirectory(logicalNodeReference string, acsiClass ACSIClass) (*LinkedList, error) {
+	cstr := C.CString(logicalNodeReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getLogicalNodeDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.ACSIClass(acsiClass))
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetDataDirectory(dataReference string) (*LinkedList, error) {
+	cstr := C.CString(dataReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getDataDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetDataDirectoryFC(dataReference string) (*LinkedList, error) {
+	cstr := C.CString(dataReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getDataDirectoryFC(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetDataDirectoryByFC(dataReference string, fc FunctionalConstraint) (*LinkedList, error) {
+	cstr := C.CString(dataReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getDataDirectoryByFC(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.FunctionalConstraint(fc))
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetVariableSpecification(dataAttributeReference string, fc FunctionalConstraint) (*MmsVariableSpecification, error) {
+	cstr := C.CString(dataAttributeReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getVariableSpecification(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.FunctionalConstraint(fc))
+	return &MmsVariableSpecification{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalDeviceVariables(ldName string) (*LinkedList, error) {
+	cstr := C.CString(ldName)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getLogicalDeviceVariables(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalDeviceDataSets(ldName string) (*LinkedList, error) {
+	cstr := C.CString(ldName)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getLogicalDeviceDataSets(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+type GetNameListHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, nameList *LinkedList, moreFollows bool)
+
+var mapGetNameListHandlers = sync.Map{}
+
+//export fGetNameListHandlerGo
+func fGetNameListHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, nameList C.LinkedList, moreFollows C._Bool) {
+	if fn, ok := mapGetNameListHandlers.Load(parameter); ok {
+		if fn, ok := fn.(GetNameListHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: nameList}, bool(moreFollows))
+		}
+	}
+}
+
+func (x *IedConnection) GetServerDirectoryAsync(continueAfter string, result *LinkedList, handler GetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr))
+	mapGetNameListHandlers.Store(handler, handler)
+	defer mapGetNameListHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getServerDirectoryAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, result.ctx, (C.IedConnection_GetNameListHandler)(C.fGetNameListHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalDeviceVariablesAsync(ldName string, continueAfter string, result *LinkedList, handler GetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(ldName)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	mapGetNameListHandlers.Store(handler, handler)
+	defer mapGetNameListHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getLogicalDeviceVariablesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, cstr2, result.ctx, (C.IedConnection_GetNameListHandler)(C.fGetNameListHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) GetLogicalDeviceDataSetsAsync(ldName string, continueAfter string, result *LinkedList, handler GetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(ldName)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	mapGetNameListHandlers.Store(handler, handler)
+	defer mapGetNameListHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getLogicalDeviceDataSetsAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, cstr2, result.ctx, (C.IedConnection_GetNameListHandler)(C.fGetNameListHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+type GetVariableSpecificationHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, variableSpecification *MmsVariableSpecification)
+
+var mapGetVariableSpecificationHandlers = sync.Map{}
+
+//export fGetVariableSpecificationHandlerGo
+func fGetVariableSpecificationHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, variableSpecification *C.MmsVariableSpecification) {
+	if fn, ok := mapGetVariableSpecificationHandlers.Load(parameter); ok {
+		if fn, ok := fn.(GetVariableSpecificationHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &MmsVariableSpecification{ctx: variableSpecification})
+		}
+	}
+}
+
+func (x *IedConnection) GetVariableSpecificationAsync(dataAttributeReference string, fc FunctionalConstraint, handler GetVariableSpecificationHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(dataAttributeReference)
+	defer C.free(unsafe.Pointer(cstr))
+	mapGetVariableSpecificationHandlers.Store(handler, handler)
+	defer mapGetVariableSpecificationHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getVariableSpecificationAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.FunctionalConstraint(fc), (C.IedConnection_GetVariableSpecificationHandler)(C.fGetVariableSpecificationHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) QueryLogByTime(logReference string, startTime uint64, endTime uint64, moreFollows *bool) (*LinkedList, error) {
+	cstr := C.CString(logReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_queryLogByTime(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.uint64_t(startTime), C.uint64_t(endTime), (*C._Bool)(unsafe.Pointer(moreFollows)))
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) QueryLogAfter(logReference string, entryID *MmsValue, timeStamp uint64, moreFollows *bool) (*LinkedList, error) {
+	cstr := C.CString(logReference)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_queryLogAfter(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, entryID.ctx, C.uint64_t(timeStamp), (*C._Bool)(unsafe.Pointer(moreFollows)))
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+type QueryLogHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, journalEntries *LinkedList, moreFollows bool)
+
+var mapQueryLogHandlers = sync.Map{}
+
+//export fQueryLogHandlerGo
+func fQueryLogHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, journalEntries C.LinkedList, moreFollows C._Bool) {
+	if fn, ok := mapQueryLogHandlers.Load(parameter); ok {
+		if fn, ok := fn.(QueryLogHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: journalEntries}, bool(moreFollows))
+		}
+	}
+}
+
+func (x *IedConnection) QueryLogByTimeAsync(logReference string, startTime uint64, endTime uint64, handler QueryLogHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(logReference)
+	defer C.free(unsafe.Pointer(cstr))
+	mapQueryLogHandlers.Store(handler, handler)
+	defer mapQueryLogHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_queryLogByTimeAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.uint64_t(startTime), C.uint64_t(endTime), (C.IedConnection_QueryLogHandler)(C.fQueryLogHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) QueryLogAfterAsync(logReference string, entryID *MmsValue, timeStamp uint64, handler QueryLogHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(logReference)
+	defer C.free(unsafe.Pointer(cstr))
+	mapQueryLogHandlers.Store(handler, handler)
+	defer mapQueryLogHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_queryLogAfterAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, entryID.ctx, C.uint64_t(timeStamp), (C.IedConnection_QueryLogHandler)(C.fQueryLogHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+type FileDirectoryEntry struct {
+	ctx C.FileDirectoryEntry
+}
+
+func FileDirectoryEntryCreate(fileName string, fileSize uint32, lastModified uint64) *FileDirectoryEntry {
+	cstr := C.CString(fileName)
+	defer C.free(unsafe.Pointer(cstr))
+	ctx := C.FileDirectoryEntry_create(cstr, C.uint32_t(fileSize), C.uint64_t(lastModified))
+	return &FileDirectoryEntry{ctx: ctx}
+}
+
+func (x *FileDirectoryEntry) Destroy() {
+	C.FileDirectoryEntry_destroy(x.ctx)
+}
+
+func (x *FileDirectoryEntry) GetFileName() string {
+	return C.GoString(C.FileDirectoryEntry_getFileName(x.ctx))
+}
+
+func (x *FileDirectoryEntry) GetFileSize() uint32 {
+	return uint32(C.FileDirectoryEntry_getFileSize(x.ctx))
+}
+
+func (x *FileDirectoryEntry) GetLastModified() uint64 {
+	return uint64(C.FileDirectoryEntry_getLastModified(x.ctx))
+}
+
+func (x *IedConnection) GetFileDirectory(directoryName string) (*LinkedList, error) {
+	cstr := C.CString(directoryName)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getFileDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+func (x *IedConnection) GetFileDirectoryEx(directoryName string, continueAfter string, moreFollows *bool) (*LinkedList, error) {
+	cstr1 := C.CString(directoryName)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	err := IED_ERROR_OK
+	ctx := C.IedConnection_getFileDirectoryEx(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2, (*C._Bool)(unsafe.Pointer(moreFollows)))
+	return &LinkedList{ctx: ctx}, IedClientError(err)
+}
+
+type FileDirectoryEntryHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, filename string, size uint32, lastModfified uint64, moreFollows bool)
+
+var mapFileDirectoryEntryHandlers = sync.Map{}
+
+//export fFileDirectoryEntryHandlerGo
+func fFileDirectoryEntryHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, filename *C.char, size C.uint32_t, lastModfified C.uint64_t, moreFollows C._Bool) {
+	if fn, ok := mapFileDirectoryEntryHandlers.Load(parameter); ok {
+		if fn, ok := fn.(FileDirectoryEntryHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), C.GoString(filename), uint32(size), uint64(lastModfified), bool(moreFollows))
+		}
+	}
+}
+
+func (x *IedConnection) GetFileDirectoryAsyncEx(directoryName string, continueAfter string, handler FileDirectoryEntryHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr1 := C.CString(directoryName)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	mapFileDirectoryEntryHandlers.Store(handler, handler)
+	defer mapFileDirectoryEntryHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getFileDirectoryAsyncEx(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.IedConnection_FileDirectoryEntryHandler)(C.fFileDirectoryEntryHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+type IedClientGetFileHandler func(parameter unsafe.Pointer, buffer []byte) bool
+
+var mapIedClientGetFileHandlers = sync.Map{}
+
+//export fIedClientGetFileHandlerGo
+func fIedClientGetFileHandlerGo(parameter unsafe.Pointer, buffer *C.uint8_t, bufferSize C.uint32_t) C._Bool {
+	if fn, ok := mapIedClientGetFileHandlers.Load(parameter); ok {
+		if fn, ok := fn.(IedClientGetFileHandler); ok {
+			return C._Bool(fn(parameter, C.GoBytes(unsafe.Pointer(buffer), C.int(bufferSize))))
+		}
+	}
+	return C._Bool(false)
+}
+
+func (x *IedConnection) GetFile(fileName string, handler IedClientGetFileHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(fileName)
+	defer C.free(unsafe.Pointer(cstr))
+	mapIedClientGetFileHandlers.Store(handler, handler)
+	defer mapIedClientGetFileHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	bytesRead := C.IedConnection_getFile(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, (C.IedConnection_GetFileAsyncHandler)(C.fIedClientGetFileHandlerGo), parameter)
+	return uint32(bytesRead), IedClientError(err)
+}
+
+type GetFileAsyncHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, originalInvokeId uint32, buffer []byte, moreFollows bool) bool
+
+var mapGetFileAsyncHandlers = sync.Map{}
+
+//export fGetFileAsyncHandlerGo
+func fGetFileAsyncHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, originalInvokeId C.uint32_t, buffer *C.uint8_t, bytesRead C.uint32_t, moreFollows C._Bool) C._Bool {
+	if fn, ok := mapGetFileAsyncHandlers.Load(parameter); ok {
+		if fn, ok := fn.(GetFileAsyncHandler); ok {
+			return C._Bool(fn(uint32(invokeId), parameter, IedClientError(err), uint32(originalInvokeId), C.GoBytes(unsafe.Pointer(buffer), C.int(bytesRead)), bool(moreFollows)))
+		}
+	}
+	return C._Bool(false)
+}
+
+func (x *IedConnection) GetFileAsync(fileName string, handler GetFileAsyncHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(fileName)
+	defer C.free(unsafe.Pointer(cstr))
+	mapGetFileAsyncHandlers.Store(handler, handler)
+	defer mapGetFileAsyncHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getFileAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, (C.IedConnection_GetFileAsyncHandler)(C.fGetFileAsyncHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) SetFilestoreBasepath(basepath string) {
+	cstr := C.CString(basepath)
+	defer C.free(unsafe.Pointer(cstr))
+	C.IedConnection_setFilestoreBasepath(x.ctx, cstr)
+}
+
+func (x *IedConnection) SetFile(sourceFilename string, destinationFilename string) error {
+	cstr1 := C.CString(sourceFilename)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(destinationFilename)
+	defer C.free(unsafe.Pointer(cstr2))
+	err := IED_ERROR_OK
+	C.IedConnection_setFile(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2)
+	return IedClientError(err)
+}
+
+func (x *IedConnection) SetFileAsync(sourceFilename string, destinationFilename string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr1 := C.CString(sourceFilename)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(destinationFilename)
+	defer C.free(unsafe.Pointer(cstr2))
+	mapGenericServiceHandlers.Store(handler, handler)
+	defer mapGenericServiceHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_setFileAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) DeleteFile(fileName string) error {
+	cstr := C.CString(fileName)
+	defer C.free(unsafe.Pointer(cstr))
+	err := IED_ERROR_OK
+	C.IedConnection_deleteFile(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
+	return IedClientError(err)
+}
+
+func (x *IedConnection) DeleteFileAsync(fileName string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	cstr := C.CString(fileName)
+	defer C.free(unsafe.Pointer(cstr))
+	mapGenericServiceHandlers.Store(handler, handler)
+	defer mapGenericServiceHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_deleteFileAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
 }
