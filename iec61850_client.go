@@ -11,13 +11,14 @@ extern void fReadObjectHandlerGo(uint32_t invokeId, void* parameter, IedClientEr
 extern void fGetRCBValuesHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, ClientReportControlBlock rcb);
 extern void fGenericServiceHandlerGo(uint32_t invokeId, void* parameter, IedClientError err);
 extern void fReportCallbackFunctionGo(void* parameter, ClientReport report);
+extern void fReadDataSetHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, ClientDataSet dataSet);
+extern void fGetDataSetDirectoryHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, LinkedList dataSetDirectory, bool isDeletable);
+extern void fWriteDataSetHandlerGo(uint32_t invokeId, void* parameter, IedClientError err, LinkedList accessResults);
 */
 import "C"
 import (
 	"sync"
 	"unsafe"
-
-	"github.com/rs/xid"
 )
 
 type ClientDataSet struct {
@@ -585,9 +586,8 @@ func fGetGoCBValuesHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err 
 func (x *IedConnection) GetGoCBValuesAsync(goCBReference string, updateGoCB *ClientGooseControlBlock, handler GetGoCBValuesHandler, parameter unsafe.Pointer) (uint32, error) {
 	cref := C.CString(goCBReference)
 	defer C.free(unsafe.Pointer(cref))
-	id := xid.New().String()
-	mapGetGoCBValuesHandlers.Store(id, handler)
-	defer mapGetGoCBValuesHandlers.Delete(id)
+	mapGetGoCBValuesHandlers.Store(handler, handler)
+	defer mapGetGoCBValuesHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	out := C.IedConnection_getGoCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, updateGoCB.ctx, (C.IedConnection_GetGoCBValuesHandler)(C.fGetGoCBValuesHandlerGo), parameter)
 	return (uint32)(out), IedClientError(err)
@@ -615,9 +615,8 @@ func fGenericServiceHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err
 
 func (x *IedConnection) SetGoCBValuesAsync(goCB *ClientGooseControlBlock, parametersMask uint32, singleRequest bool, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
 	err := IED_ERROR_OK
-	id := xid.New().String()
-	mapGenericServiceHandlers.Store(id, handler)
-	defer mapGenericServiceHandlers.Delete(id)
+	mapGenericServiceHandlers.Store(handler, handler)
+	defer mapGenericServiceHandlers.Delete(handler)
 	out := C.IedConnection_setGoCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), goCB.ctx, (C.uint32_t)(parametersMask), (C.bool)(singleRequest), (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
 	return (uint32)(out), IedClientError(err)
 }
@@ -649,9 +648,8 @@ func (x *IedConnection) ReadObjectAsync(dataAttributeReference string, fc Functi
 	cref := C.CString(dataAttributeReference)
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
-	id := xid.New().String()
-	mapReadObjectHandlers.Store(id, handler)
-	defer mapReadObjectHandlers.Delete(id)
+	mapReadObjectHandlers.Store(handler, handler)
+	defer mapReadObjectHandlers.Delete(handler)
 	out := C.IedConnection_readObjectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (C.IedConnection_ReadObjectHandler)(C.fReadObjectHandlerGo), parameter)
 	return (uint32)(out), IedClientError(err)
 }
@@ -668,9 +666,8 @@ func (x *IedConnection) WriteObjectAsync(dataAttributeReference string, fc Funct
 	cref := C.CString(dataAttributeReference)
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
-	id := xid.New().String()
-	mapGenericServiceHandlers.Store(id, handler)
-	defer mapGenericServiceHandlers.Delete(id)
+	mapGenericServiceHandlers.Store(handler, handler)
+	defer mapGenericServiceHandlers.Delete(handler)
 	out := C.IedConnection_writeObjectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), value.ctx, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
 	return (uint32)(out), IedClientError(err)
 }
@@ -912,9 +909,8 @@ func (x *IedConnection) SetRCBValues(rcbReference string, rcb *ClientReportContr
 func (x *IedConnection) SetRCBValuesAsync(rcbReference string, rcb *ClientReportControlBlock, parametersMask uint32, singleRequest bool, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
 	cref := C.CString(rcbReference)
 	defer C.free(unsafe.Pointer(cref))
-	id := xid.New().String()
-	mapGenericServiceHandlers.Store(id, handler)
-	defer mapGenericServiceHandlers.Delete(id)
+	mapGenericServiceHandlers.Store(handler, handler)
+	defer mapGenericServiceHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_setRCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), rcb.ctx, C.uint32_t(parametersMask), C.bool(singleRequest), (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
 	return (uint32)(invokeId), IedClientError(err)
@@ -1178,4 +1174,157 @@ func (x *ClientReportControlBlock) GetEntryTime() uint64 {
 
 func (x *ClientReportControlBlock) GetOwner() *MmsValue {
 	return &MmsValue{ctx: C.ClientReportControlBlock_getOwner(x.ctx)}
+}
+
+func (x *IedConnection) ReadDataSetValues(dataSetReference string, dataSet *ClientDataSet) (*ClientDataSet, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	err := IED_ERROR_OK
+	out := C.IedConnection_readDataSetValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSet.ctx)
+	return &ClientDataSet{ctx: out}, IedClientError(err)
+}
+
+type ReadDataSetHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, dataSet *ClientDataSet)
+
+var mapReadDataSetHandlers = sync.Map{}
+
+//export fReadDataSetHandlerGo
+func fReadDataSetHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, dataSet C.ClientDataSet) {
+	mapReadDataSetHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(ReadDataSetHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &ClientDataSet{ctx: dataSet})
+		}
+		return true
+	})
+}
+
+func (x *IedConnection) ReadDataSetValuesAsync(dataSetReference string, dataSet *ClientDataSet, handler ReadDataSetHandler, parameter unsafe.Pointer) (uint32, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	mapReadDataSetHandlers.Store(handler, handler)
+	defer mapReadDataSetHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_readDataSetValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSet.ctx, (C.IedConnection_ReadDataSetHandler)(C.fReadDataSetHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) CreateDataSet(dataSetReference string, dataSetElements *LinkedList) error {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	err := IED_ERROR_OK
+	C.IedConnection_createDataSet(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSetElements.ctx)
+	return IedClientError(err)
+}
+
+func (x *IedConnection) CreateDataSetAsync(dataSetReference string, dataSetElements *LinkedList, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	mapGenericServiceHandlers.Store(handler, handler)
+	defer mapGenericServiceHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_createDataSetAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSetElements.ctx, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) DeleteDataSet(dataSetReference string) error {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	err := IED_ERROR_OK
+	C.IedConnection_deleteDataSet(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid)
+	return IedClientError(err)
+}
+
+func (x *IedConnection) DeleteDataSetAsync(dataSetReference string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	mapGenericServiceHandlers.Store(handler, handler)
+	defer mapGenericServiceHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_deleteDataSetAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) GetDataSetDirectory(dataSetReference string, isDeletable *bool) (*LinkedList, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	err := IED_ERROR_OK
+	out := C.IedConnection_getDataSetDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, (*C.bool)(unsafe.Pointer(isDeletable)))
+	return &LinkedList{ctx: out}, IedClientError(err)
+}
+
+type GetDataSetDirectoryHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, dataSetDirectory *LinkedList, isDeletable bool)
+
+var mapGetDataSetDirectoryHandlers = sync.Map{}
+
+//export fGetDataSetDirectoryHandlerGo
+func fGetDataSetDirectoryHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, dataSetDirectory C.LinkedList, isDeletable C._Bool) {
+	mapGetDataSetDirectoryHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(GetDataSetDirectoryHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: dataSetDirectory}, bool(isDeletable))
+		}
+		return true
+	})
+}
+
+func (x *IedConnection) GetDataSetDirectoryAsync(dataSetReference string, handler GetDataSetDirectoryHandler, parameter unsafe.Pointer) (uint32, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	mapGetDataSetDirectoryHandlers.Store(handler, handler)
+	defer mapGetDataSetDirectoryHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_getDataSetDirectoryAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, (C.IedConnection_GetDataSetDirectoryHandler)(C.fGetDataSetDirectoryHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *IedConnection) WriteDataSetValues(dataSetReference string, values *LinkedList) (*LinkedList, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	var accessResults *C.LinkedList
+	err := IED_ERROR_OK
+	C.IedConnection_writeDataSetValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, values.ctx, (*C.LinkedList)(unsafe.Pointer(accessResults)))
+	return &LinkedList{ctx: *accessResults}, IedClientError(err)
+}
+
+type WriteDataSetHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, accessResults *LinkedList)
+
+var mapWriteDataSetHandlers = sync.Map{}
+
+//export fWriteDataSetHandlerGo
+func fWriteDataSetHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, accessResults C.LinkedList) {
+	mapWriteDataSetHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(WriteDataSetHandler); ok {
+			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: accessResults})
+		}
+		return true
+	})
+}
+
+func (x *IedConnection) WriteDataSetValuesAsync(dataSetReference string, values *LinkedList, handler WriteDataSetHandler, parameter unsafe.Pointer) (uint32, error) {
+	cid := C.CString(dataSetReference)
+	defer C.free(unsafe.Pointer(cid))
+	mapWriteDataSetHandlers.Store(handler, handler)
+	defer mapWriteDataSetHandlers.Delete(handler)
+	err := IED_ERROR_OK
+	invokeId := C.IedConnection_writeDataSetValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, values.ctx, (C.IedConnection_WriteDataSetHandler)(C.fWriteDataSetHandlerGo), parameter)
+	return uint32(invokeId), IedClientError(err)
+}
+
+func (x *ClientDataSet) Destroy() {
+	C.ClientDataSet_destroy(x.ctx)
+}
+
+func (x *ClientDataSet) GetValues() *MmsValue {
+	return &MmsValue{ctx: C.ClientDataSet_getValues(x.ctx)}
+}
+
+func (x *ClientDataSet) GetReference() string {
+	return C.GoString(C.ClientDataSet_getReference(x.ctx))
+}
+
+func (x *ClientDataSet) GetDataSetSize() int {
+	return int(C.ClientDataSet_getDataSetSize(x.ctx))
+}
+
+type ControlObjectClient struct {
+	ctx C.ControlObjectClient
 }
