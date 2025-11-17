@@ -180,13 +180,13 @@ func (x *LogicalNode) HasFCData(fc FunctionalConstraint) bool {
 	return bool(C.LogicalNode_hasFCData(x.ctx, C.FunctionalConstraint(fc)))
 }
 
-func (x *LogicalNode) HasBufferedReports() bool {
-	return bool(C.LogicalNode_hasBufferedReports(x.ctx))
-}
+// func (x *LogicalNode) HasBufferedReports() bool {
+// 	return bool(C.LogicalNode_hasBufferedReports(x.ctx))
+// }
 
-func (x *LogicalNode) HasUnbufferedReports() bool {
-	return bool(C.LogicalNode_hasUnbufferedReports(x.ctx))
-}
+// func (x *LogicalNode) HasUnbufferedReports() bool {
+// 	return bool(C.LogicalNode_hasUnbufferedReports(x.ctx))
+// }
 
 func (x *LogicalNode) GetDataSet(dataSetName string) *DataSet {
 	cname := C.CString(dataSetName)
