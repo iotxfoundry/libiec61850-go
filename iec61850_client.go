@@ -1291,13 +1291,13 @@ func (x *IedConnection) GetDataSetDirectoryAsync(dataSetReference string, handle
 func (x *IedConnection) WriteDataSetValues(dataSetReference string, values *LinkedList) (*LinkedList, error) {
 	cid := C.CString(dataSetReference)
 	defer C.free(unsafe.Pointer(cid))
-	var accessResults *C.LinkedList
+	var accessResults C.LinkedList
 	err := IED_ERROR_OK
-	C.IedConnection_writeDataSetValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, values.ctx, (*C.LinkedList)(unsafe.Pointer(accessResults)))
+	C.IedConnection_writeDataSetValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, values.ctx, (*C.LinkedList)(unsafe.Pointer(&accessResults)))
 	if accessResults == nil {
 		return nil, err.Error()
 	}
-	return &LinkedList{ctx: *accessResults}, err.Error()
+	return &LinkedList{ctx: accessResults}, err.Error()
 }
 
 type WriteDataSetHandler func(invokeId uint32, parameter unsafe.Pointer, err error, accessResults *LinkedList)
