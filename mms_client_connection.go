@@ -17,6 +17,13 @@ extern void fWriteMultipleVariablesHandlerGo(uint32_t invokeId, void* parameter,
 extern void fGetVariableAccessAttributesHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, MmsVariableSpecification* spec);
 extern void fReadNVLDirectoryHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, LinkedList specs, bool deletable);
 extern void fIdentifyHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, char* vendorName, char* modelName, char* revision);
+extern void fGetServerStatusHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, int vmdLogicalStatus, int vmdPhysicalStatus);
+extern void fMmsFileDirectoryHandlerGo(void* parameter, char* filename, uint32_t size, uint64_t lastModified);
+extern void fFileDirectoryHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, char* filename, uint32_t size, uint64_t lastModified, bool moreFollows);
+extern void fMmsFileReadHandlerGo(void* parameter, int32_t frsmId, uint8_t* buffer, uint32_t bufferSize);
+extern void fFileReadHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, int32_t frsmId, uint8_t* buffer, uint32_t byteReceived, bool moreFollows);
+extern void fFileOpenHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, int32_t frsmId, uint32_t fileSize, uint64_t lastModified);
+extern void fReadJournalHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, LinkedList journalEntries, bool moreFollows);
 */
 import "C"
 import (
@@ -973,4 +980,330 @@ func (x *MmsConnection) IdentifyAsync(handler IdentifyHandler, parameter unsafe.
 
 func (x *MmsServerIdentity) Destroy() {
 	C.MmsServerIdentity_destroy(x.ctx)
+}
+
+func (x *MmsConnection) GetServerStatus(extendedDerivation bool) (int, int, error) {
+	err := MMS_ERROR_NONE
+	vmdLogicalStatus := C.int(0)
+	vmdPhysicalStatus := C.int(0)
+	C.MmsConnection_getServerStatus(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), (*C.int)(unsafe.Pointer(&vmdLogicalStatus)), (*C.int)(unsafe.Pointer(&vmdPhysicalStatus)), C.bool(extendedDerivation))
+	return int(vmdLogicalStatus), int(vmdPhysicalStatus), err.Error()
+}
+
+type GetServerStatusHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, vmdLogicalStatus int, vmdPhysicalStatus int)
+
+var mapGetServerStatusHandlers = sync.Map{}
+
+//export fGetServerStatusHandlerGo
+func fGetServerStatusHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, vmdLogicalStatus C.int, vmdPhysicalStatus C.int) {
+	mapGetServerStatusHandlers.Range(func(k, v any) bool {
+		if k.(uint32) == uint32(invokeId) {
+			if fn, ok := v.(GetServerStatusHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), int(vmdLogicalStatus), int(vmdPhysicalStatus))
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) GetServerStatusAsync(extendedDerivation bool, handler GetServerStatusHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getServerStatusAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), C.bool(extendedDerivation), (C.MmsConnection_GetServerStatusHandler)(C.fGetServerStatusHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+type MmsFileDirectoryHandler func(parameter unsafe.Pointer, filename string, size uint32, lastModified uint64)
+
+var mapMmsFileDirectoryHandlers = sync.Map{}
+
+//export fMmsFileDirectoryHandlerGo
+func fMmsFileDirectoryHandlerGo(parameter unsafe.Pointer, filename *C.char, size C.uint32_t, lastModified C.uint64_t) {
+	mapMmsFileDirectoryHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(MmsFileDirectoryHandler); ok {
+			fn(parameter, C.GoString(filename), uint32(size), uint64(lastModified))
+		}
+		return true
+	})
+}
+
+type FileDirectoryHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, filename string, size uint32, lastModified uint64, moreFollows bool)
+
+var mapFileDirectoryHandlers = sync.Map{}
+
+//export fFileDirectoryHandlerGo
+func fFileDirectoryHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, filename *C.char, size C.uint32_t, lastModified C.uint64_t, moreFollows C.bool) {
+	mapFileDirectoryHandlers.Range(func(k, v any) bool {
+		if k.(uint32) == uint32(invokeId) {
+			if fn, ok := v.(FileDirectoryHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), C.GoString(filename), uint32(size), uint64(lastModified), bool(moreFollows))
+			}
+		}
+		return true
+	})
+}
+
+type MmsFileReadHandler func(parameter unsafe.Pointer, frsmId int32, buffer []byte)
+
+var mapMmsFileReadHandlers = sync.Map{}
+
+//export fMmsFileReadHandlerGo
+func fMmsFileReadHandlerGo(parameter unsafe.Pointer, frsmId C.int32_t, buffer *C.uint8_t, bytesReceived C.uint32_t) {
+	mapMmsFileReadHandlers.Range(func(k, v any) bool {
+		if k.(uint32) == uint32(frsmId) {
+			if fn, ok := v.(MmsFileReadHandler); ok {
+				fn(parameter, int32(frsmId), C.GoBytes(unsafe.Pointer(buffer), C.int(bytesReceived)))
+			}
+		}
+		return true
+	})
+}
+
+type FileReadHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, frsmId int32, buffer []byte, moreFollows bool)
+
+var mapFileReadHandlers = sync.Map{}
+
+//export fFileReadHandlerGo
+func fFileReadHandlerGo(invokeId uint32, parameter unsafe.Pointer, mmsError C.MmsError, frsmId C.int32_t, buffer *C.uint8_t, byteReceived C.uint32_t, moreFollows C.bool) {
+	mapFileReadHandlers.Range(func(k, v any) bool {
+		if k.(uint32) == uint32(invokeId) {
+			if fn, ok := v.(FileReadHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), int32(frsmId), C.GoBytes(unsafe.Pointer(buffer), C.int(byteReceived)), bool(moreFollows))
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) FileOpen(filename string, initialPosition uint32) (uint32, uint32, uint64, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(filename)
+	defer C.free(unsafe.Pointer(cstr))
+	fileSize := C.uint32_t(0)
+	lastModified := C.uint64_t(0)
+	frsmId := C.MmsConnection_fileOpen(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, C.uint32_t(initialPosition), (*C.uint32_t)(unsafe.Pointer(&fileSize)), (*C.uint64_t)(unsafe.Pointer(&lastModified)))
+	return uint32(frsmId), uint32(fileSize), uint64(lastModified), err.Error()
+}
+
+type FileOpenHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, frsmId int32, fileSize uint32, lastModified uint64)
+
+var mapFileOpenHandlers = sync.Map{}
+
+//export fFileOpenHandlerGo
+func fFileOpenHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, frsmId C.int32_t, fileSize C.uint32_t, lastModified C.uint64_t) {
+	mapFileOpenHandlers.Range(func(k, v any) bool {
+		if k.(uint32) == uint32(invokeId) {
+			if fn, ok := v.(FileOpenHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), int32(frsmId), uint32(fileSize), uint64(lastModified))
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) FileOpenAsync(filename string, initialPosition uint32, handler FileOpenHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	cstr := C.CString(filename)
+	defer C.free(unsafe.Pointer(cstr))
+	C.MmsConnection_fileOpenAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, C.uint32_t(initialPosition), (C.MmsConnection_FileOpenHandler)(C.fFileOpenHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) FileRead(frsmId int32, handler MmsFileReadHandler, parameter unsafe.Pointer) error {
+	err := MMS_ERROR_NONE
+	C.MmsConnection_fileRead(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), C.int32_t(frsmId), (C.MmsConnection_FileReadHandler)(C.fFileReadHandlerGo), parameter)
+	return err.Error()
+}
+
+func (x *MmsConnection) FileReadAsync(frsmId int32, handler FileReadHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_fileReadAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), C.int32_t(frsmId), (C.MmsConnection_FileReadHandler)(C.fFileReadHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) FileClose(frsmId int32) error {
+	err := MMS_ERROR_NONE
+	C.MmsConnection_fileClose(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), C.int32_t(frsmId))
+	return err.Error()
+}
+
+func (x *MmsConnection) FileCloseAsync(frsmId int32, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_fileCloseAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), C.uint32_t(frsmId), (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) FileDelete(filename string) error {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(filename)
+	defer C.free(unsafe.Pointer(cstr))
+	C.MmsConnection_fileDelete(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr)
+	return err.Error()
+}
+
+func (x *MmsConnection) FileDeleteAsync(filename string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	cstr := C.CString(filename)
+	defer C.free(unsafe.Pointer(cstr))
+	C.MmsConnection_fileDeleteAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) FileRename(currentFileName string, newFileName string) error {
+	err := MMS_ERROR_NONE
+	cstr1 := C.CString(currentFileName)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(newFileName)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_fileRename(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2)
+	return err.Error()
+}
+
+func (x *MmsConnection) FileRenameAsync(currentFileName string, newFileName string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	cstr1 := C.CString(currentFileName)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(newFileName)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_fileRenameAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ObtainFile(sourceFile string, destinationFile string) error {
+	err := MMS_ERROR_NONE
+	cstr1 := C.CString(sourceFile)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(destinationFile)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_obtainFile(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2)
+	return err.Error()
+}
+
+func (x *MmsConnection) ObtainFileAsync(sourceFile string, destinationFile string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	cstr1 := C.CString(sourceFile)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(destinationFile)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_obtainFileAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) GetFileDirectory(fileSpecification string, continueAfter string, handler FileDirectoryHandler, parameter unsafe.Pointer) error {
+	err := MMS_ERROR_NONE
+	cstr1 := C.CString(fileSpecification)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_getFileDirectory(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.MmsConnection_FileDirectoryHandler)(C.fFileDirectoryHandlerGo), parameter)
+	return err.Error()
+}
+
+func (x *MmsConnection) GetFileDirectoryAsync(fileSpecification string, continueAfter string, handler FileDirectoryHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	cstr1 := C.CString(fileSpecification)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_getFileDirectoryAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.MmsConnection_FileDirectoryHandler)(C.fFileDirectoryHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+type MmsJournalEntry struct {
+	ctx C.MmsJournalEntry
+}
+
+type MmsJournalVariable struct {
+	ctx C.MmsJournalVariable
+}
+
+func (x *MmsJournalEntry) Destroy() {
+	C.MmsJournalEntry_destroy(x.ctx)
+}
+
+func (x *MmsJournalEntry) GetEntryID() *MmsValue {
+	return &MmsValue{ctx: C.MmsJournalEntry_getEntryID(x.ctx)}
+}
+
+func (x *MmsJournalEntry) GetOccurenceTime() *MmsValue {
+	return &MmsValue{ctx: C.MmsJournalEntry_getOccurenceTime(x.ctx)}
+}
+
+func (x *MmsJournalEntry) GetJournalVariables() *LinkedList {
+	return &LinkedList{ctx: C.MmsJournalEntry_getJournalVariables(x.ctx)}
+}
+
+func (x *MmsJournalVariable) GetTag() string {
+	return C.GoString(C.MmsJournalVariable_getTag(x.ctx))
+}
+
+func (x *MmsJournalVariable) GetValue() *MmsValue {
+	return &MmsValue{ctx: C.MmsJournalVariable_getValue(x.ctx)}
+}
+
+type ReadJournalHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, journalEntries *LinkedList, moreFollows bool)
+
+var mapReadJournalHandlers = sync.Map{}
+
+//export fReadJournalHandlerGo
+func fReadJournalHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, journalEntries C.LinkedList, moreFollows C.bool) {
+	mapReadJournalHandlers.Range(func(k, v any) bool {
+		if k == uint32(invokeId) {
+			if fn, ok := v.(ReadJournalHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), &LinkedList{ctx: journalEntries}, bool(moreFollows))
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) ReadJournalTimeRange(domainId string, itemId string, startTime *MmsValue, endTime *MmsValue) (*LinkedList, bool, error) {
+	err := MMS_ERROR_NONE
+	moreFollows := C.bool(false)
+	cstr1 := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	list := C.MmsConnection_readJournalTimeRange(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, startTime.ctx, endTime.ctx, (*C.bool)(unsafe.Pointer(&moreFollows)))
+	return &LinkedList{ctx: list}, bool(moreFollows), err.Error()
+}
+
+func (x *MmsConnection) ReadJournalTimeRangeAsync(domainId string, itemId string, startTime *MmsValue, endTime *MmsValue, handler ReadJournalHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	cstr1 := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_readJournalTimeRangeAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, startTime.ctx, endTime.ctx, (C.MmsConnection_ReadJournalHandler)(C.fReadJournalHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadJournalStartAfter(domainId string, itemId string, timeSpecification *MmsValue, entrySpecification *MmsValue) (*LinkedList, bool, error) {
+	err := MMS_ERROR_NONE
+	moreFollows := C.bool(false)
+	cstr1 := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	list := C.MmsConnection_readJournalStartAfter(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, timeSpecification.ctx, entrySpecification.ctx, (*C.bool)(unsafe.Pointer(&moreFollows)))
+	return &LinkedList{ctx: list}, bool(moreFollows), err.Error()
+}
+
+func (x *MmsConnection) ReadJournalStartAfterAsync(domainId string, itemId string, timeSpecification *MmsValue, entrySpecification *MmsValue, handler ReadJournalHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	cstr1 := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr1))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_readJournalStartAfterAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr1, cstr2, timeSpecification.ctx, entrySpecification.ctx, (C.MmsConnection_ReadJournalHandler)(C.fReadJournalHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
 }
