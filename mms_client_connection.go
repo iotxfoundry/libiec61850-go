@@ -8,6 +8,7 @@ extern void fMmsRawMessageHandlerGo(void* parameter, uint8_t* message, int messa
 extern void fMmsConnectionStateChangedHandlerGo(MmsConnection connection, void* parameter, MmsConnectionState newState);
 extern void fMmsInformationReportHandlerGo(void* parameter, char* domainName, char* variableListName, MmsValue* value, bool isVariableListName);
 extern void fMmsConnectionLostHandlerGo(MmsConnection connection, void* parameter);
+extern void fConcludeAbortHandlerGo(void* parameter, MmsError mmsError, bool success);
 */
 import "C"
 import (
@@ -195,10 +196,80 @@ func (x *MmsConnection) SetConnectionLostHandler(handler MmsConnectionLostHandle
 	C.MmsConnection_setConnectionLostHandler(x.ctx, (C.MmsConnectionLostHandler)(C.fMmsConnectionLostHandlerGo), parameter)
 }
 
-func (x *MmsConnection) SetIsoConnectionParameters(params *IsoConnectionParameters) {
-	C.MmsConnection_setIsoConnectionParameters(x.ctx, &params.ctx)
-}
+// func (x *MmsConnection) SetIsoConnectionParameters(params *IsoConnectionParameters) {
+// 	C.MmsConnection_setIsoConnectionParameters(x.ctx, &params.ctx)
+// }
 
 func (x *MmsConnection) Destroy() {
 	C.MmsConnection_destroy(x.ctx)
 }
+
+func (x *MmsConnection) Connect(serverName string, serverPort int) (bool, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(serverName)
+	defer C.free(unsafe.Pointer(cstr))
+	success := bool(C.MmsConnection_connect(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, C.int(serverPort)))
+	return success, err.Error()
+}
+
+func (x *MmsConnection) ConnectAsync(mmsError *MmsError, serverName string, serverPort int) error {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(serverName)
+	defer C.free(unsafe.Pointer(cstr))
+	C.MmsConnection_connectAsync(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, C.int(serverPort))
+	return err.Error()
+}
+
+func (x *MmsConnection) Tick() bool {
+	return bool(C.MmsConnection_tick(x.ctx))
+}
+
+func (x *MmsConnection) SendRawData(buffer []byte) error {
+	err := MMS_ERROR_NONE
+	C.MmsConnection_sendRawData(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), (*C.uint8_t)(unsafe.SliceData(buffer)), C.int(len(buffer)))
+	return err.Error()
+}
+
+func (x *MmsConnection) Close() {
+	C.MmsConnection_close(x.ctx)
+}
+
+type ConcludeAbortHandler func(parameter unsafe.Pointer, mmsError MmsError, success bool)
+
+var mapConcludeAbortHandlers = sync.Map{}
+
+//export fConcludeAbortHandlerGo
+func fConcludeAbortHandlerGo(parameter unsafe.Pointer, mmsError C.MmsError, success C.bool) {
+	mapConcludeAbortHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(ConcludeAbortHandler); ok {
+			fn(parameter, MmsError(mmsError), bool(success))
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) Abort() error {
+	err := MMS_ERROR_NONE
+	C.MmsConnection_abort(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)))
+	return err.Error()
+}
+
+func (x *MmsConnection) AbortAsync() error {
+	err := MMS_ERROR_NONE
+	C.MmsConnection_abortAsync(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)))
+	return err.Error()
+}
+
+func (x *MmsConnection) Conclude() error {
+	err := MMS_ERROR_NONE
+	C.MmsConnection_conclude(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)))
+	return err.Error()
+}
+
+func (x *MmsConnection) ConcludeAsync(handler ConcludeAbortHandler, parameter unsafe.Pointer) error {
+	err := MMS_ERROR_NONE
+	C.MmsConnection_concludeAsync(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), (C.MmsConnection_ConcludeAbortHandler)(C.fConcludeAbortHandlerGo), parameter)
+	return err.Error()
+}
+
+type MmsConnectionGenericServiceHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError MmsError, success bool)

@@ -25,6 +25,7 @@ extern bool fGetFileAsyncHandlerGo(uint32_t invokeId, void* parameter, IedClient
 */
 import "C"
 import (
+	"errors"
 	"sync"
 	"unsafe"
 )
@@ -171,8 +172,11 @@ const (
 	IED_ERROR_UNKNOWN IedClientError = C.IED_ERROR_UNKNOWN
 )
 
-func (e IedClientError) Error() string {
-	return e.String()
+func (x IedClientError) Error() error {
+	if x == IED_ERROR_OK {
+		return nil
+	}
+	return errors.New(x.String())
 }
 
 func (x IedClientError) String() string {
@@ -236,7 +240,7 @@ func (x *IedConnection) Connect(hostname string, tcpPort int) error {
 	defer C.free(unsafe.Pointer(caddr))
 	err := IED_ERROR_OK
 	C.IedConnection_connect(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), caddr, C.int(tcpPort))
-	return err
+	return err.Error()
 }
 
 func (x *IedConnection) ConnectAsync(hostname string, tcpPort int) error {
@@ -244,31 +248,31 @@ func (x *IedConnection) ConnectAsync(hostname string, tcpPort int) error {
 	defer C.free(unsafe.Pointer(caddr))
 	err := IED_ERROR_OK
 	C.IedConnection_connectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), caddr, C.int(tcpPort))
-	return err
+	return err.Error()
 }
 
 func (x *IedConnection) Abort() error {
 	err := IED_ERROR_OK
 	C.IedConnection_abort(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
-	return err
+	return err.Error()
 }
 
 func (x *IedConnection) AbortAsync() error {
 	err := IED_ERROR_OK
 	C.IedConnection_abortAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
-	return err
+	return err.Error()
 }
 
 func (x *IedConnection) Release() error {
 	err := IED_ERROR_OK
 	C.IedConnection_release(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
-	return err
+	return err.Error()
 }
 
 func (x *IedConnection) ReleaseAsync() error {
 	err := IED_ERROR_OK
 	C.IedConnection_releaseAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
-	return err
+	return err.Error()
 }
 
 func (x *IedConnection) Close() {
@@ -382,7 +386,7 @@ func (x *ClientSVControlBlock) IsMulticast() bool {
 
 func (x *ClientSVControlBlock) GetLastComError() error {
 	err := C.ClientSVControlBlock_getLastComError(x.ctx)
-	return IedClientError(err)
+	return IedClientError(err).Error()
 }
 
 func (x *ClientSVControlBlock) SetSvEna(value bool) bool {
@@ -574,10 +578,10 @@ func (x *IedConnection) GetGoCBValues(goCBReference string, updateGoCB *ClientGo
 	err := IED_ERROR_OK
 	out := C.IedConnection_getGoCBValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, updateGoCB.ctx)
 	goCB := &ClientGooseControlBlock{ctx: out}
-	return goCB, IedClientError(err)
+	return goCB, err.Error()
 }
 
-type GetGoCBValuesHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, goCB *ClientGooseControlBlock)
+type GetGoCBValuesHandler func(invokeId uint32, parameter unsafe.Pointer, err error, goCB *ClientGooseControlBlock)
 
 var mapGetGoCBValuesHandlers = sync.Map{}
 
@@ -585,7 +589,7 @@ var mapGetGoCBValuesHandlers = sync.Map{}
 func fGetGoCBValuesHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, goCB C.ClientGooseControlBlock) {
 	mapGetGoCBValuesHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(GetGoCBValuesHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &ClientGooseControlBlock{ctx: goCB})
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &ClientGooseControlBlock{ctx: goCB})
 		}
 		return true
 	})
@@ -598,16 +602,16 @@ func (x *IedConnection) GetGoCBValuesAsync(goCBReference string, updateGoCB *Cli
 	defer mapGetGoCBValuesHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	out := C.IedConnection_getGoCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, updateGoCB.ctx, (C.IedConnection_GetGoCBValuesHandler)(C.fGetGoCBValuesHandlerGo), parameter)
-	return (uint32)(out), IedClientError(err)
+	return (uint32)(out), err.Error()
 }
 
 func (x *IedConnection) SetGoCBValues(goCB *ClientGooseControlBlock, parametersMask uint32, singleRequest bool) error {
 	err := IED_ERROR_OK
 	C.IedConnection_setGoCBValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), goCB.ctx, (C.uint32_t)(parametersMask), (C.bool)(singleRequest))
-	return IedClientError(err)
+	return err.Error()
 }
 
-type GenericServiceHandler func(invokeId uint32, parameter any, err IedClientError)
+type GenericServiceHandler func(invokeId uint32, parameter any, err error)
 
 var mapGenericServiceHandlers = sync.Map{}
 
@@ -615,7 +619,7 @@ var mapGenericServiceHandlers = sync.Map{}
 func fGenericServiceHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError) {
 	mapGenericServiceHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(GenericServiceHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err))
+			fn(uint32(invokeId), parameter, IedClientError(err).Error())
 		}
 		return true
 	})
@@ -626,7 +630,7 @@ func (x *IedConnection) SetGoCBValuesAsync(goCB *ClientGooseControlBlock, parame
 	mapGenericServiceHandlers.Store(handler, handler)
 	defer mapGenericServiceHandlers.Delete(handler)
 	out := C.IedConnection_setGoCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), goCB.ctx, (C.uint32_t)(parametersMask), (C.bool)(singleRequest), (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
-	return (uint32)(out), IedClientError(err)
+	return (uint32)(out), err.Error()
 }
 
 func (x *IedConnection) ReadObject(dataAttributeReference string, fc FunctionalConstraint) (*MmsValue, error) {
@@ -635,10 +639,10 @@ func (x *IedConnection) ReadObject(dataAttributeReference string, fc FunctionalC
 	err := IED_ERROR_OK
 	out := C.IedConnection_readObject(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
 	mmsValue := &MmsValue{ctx: out}
-	return mmsValue, IedClientError(err)
+	return mmsValue, err.Error()
 }
 
-type ReadObjectHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, value *MmsValue)
+type ReadObjectHandler func(invokeId uint32, parameter unsafe.Pointer, err error, value *MmsValue)
 
 var mapReadObjectHandlers = sync.Map{}
 
@@ -646,7 +650,7 @@ var mapReadObjectHandlers = sync.Map{}
 func fReadObjectHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, value *C.MmsValue) {
 	mapReadObjectHandlers.Range(func(k, v any) bool {
 		if fn, ok := k.(ReadObjectHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &MmsValue{ctx: value})
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &MmsValue{ctx: value})
 		}
 		return true
 	})
@@ -659,7 +663,7 @@ func (x *IedConnection) ReadObjectAsync(dataAttributeReference string, fc Functi
 	mapReadObjectHandlers.Store(handler, handler)
 	defer mapReadObjectHandlers.Delete(handler)
 	out := C.IedConnection_readObjectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (C.IedConnection_ReadObjectHandler)(C.fReadObjectHandlerGo), parameter)
-	return (uint32)(out), IedClientError(err)
+	return (uint32)(out), err.Error()
 }
 
 func (x *IedConnection) WriteObject(dataAttributeReference string, fc FunctionalConstraint, value *MmsValue) error {
@@ -667,7 +671,7 @@ func (x *IedConnection) WriteObject(dataAttributeReference string, fc Functional
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_writeObject(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), value.ctx)
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) WriteObjectAsync(dataAttributeReference string, fc FunctionalConstraint, value *MmsValue, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -677,7 +681,7 @@ func (x *IedConnection) WriteObjectAsync(dataAttributeReference string, fc Funct
 	mapGenericServiceHandlers.Store(handler, handler)
 	defer mapGenericServiceHandlers.Delete(handler)
 	out := C.IedConnection_writeObjectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), value.ctx, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
-	return (uint32)(out), IedClientError(err)
+	return (uint32)(out), err.Error()
 }
 
 func (x *IedConnection) ReadBooleanValue(dataAttributeReference string, fc FunctionalConstraint) (bool, error) {
@@ -685,7 +689,7 @@ func (x *IedConnection) ReadBooleanValue(dataAttributeReference string, fc Funct
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readBooleanValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
-	return (bool)(out), IedClientError(err)
+	return (bool)(out), err.Error()
 }
 
 func (x *IedConnection) ReadFloatValue(dataAttributeReference string, fc FunctionalConstraint) (float32, error) {
@@ -693,7 +697,7 @@ func (x *IedConnection) ReadFloatValue(dataAttributeReference string, fc Functio
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readFloatValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
-	return (float32)(out), IedClientError(err)
+	return (float32)(out), err.Error()
 }
 
 func (x *IedConnection) ReadStringValue(dataAttributeReference string, fc FunctionalConstraint) (string, error) {
@@ -701,7 +705,7 @@ func (x *IedConnection) ReadStringValue(dataAttributeReference string, fc Functi
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readStringValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
-	return C.GoString(out), IedClientError(err)
+	return C.GoString(out), err.Error()
 }
 
 func (x *IedConnection) ReadInt32Value(dataAttributeReference string, fc FunctionalConstraint) (int32, error) {
@@ -709,7 +713,7 @@ func (x *IedConnection) ReadInt32Value(dataAttributeReference string, fc Functio
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readInt32Value(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
-	return (int32)(out), IedClientError(err)
+	return (int32)(out), err.Error()
 }
 
 func (x *IedConnection) ReadInt64Value(dataAttributeReference string, fc FunctionalConstraint) (int64, error) {
@@ -717,7 +721,7 @@ func (x *IedConnection) ReadInt64Value(dataAttributeReference string, fc Functio
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readInt64Value(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
-	return (int64)(out), IedClientError(err)
+	return (int64)(out), err.Error()
 }
 
 func (x *IedConnection) ReadUnsigned32Value(dataAttributeReference string, fc FunctionalConstraint) (uint32, error) {
@@ -725,7 +729,7 @@ func (x *IedConnection) ReadUnsigned32Value(dataAttributeReference string, fc Fu
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readUnsigned32Value(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
-	return (uint32)(out), IedClientError(err)
+	return (uint32)(out), err.Error()
 }
 
 func (x *IedConnection) ReadTimestampValue(dataAttributeReference string, fc FunctionalConstraint, timestamp *Timestamp) (*Timestamp, error) {
@@ -738,7 +742,7 @@ func (x *IedConnection) ReadTimestampValue(dataAttributeReference string, fc Fun
 	}
 	out := C.IedConnection_readTimestampValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), ctimestamp)
 	timestamp.ctx = ctimestamp
-	return &Timestamp{ctx: out}, IedClientError(err)
+	return &Timestamp{ctx: out}, err.Error()
 }
 
 func (x *IedConnection) ReadQualityValue(dataAttributeReference string, fc FunctionalConstraint) (Quality, error) {
@@ -746,7 +750,7 @@ func (x *IedConnection) ReadQualityValue(dataAttributeReference string, fc Funct
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readQualityValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc))
-	return (Quality)(out), IedClientError(err)
+	return (Quality)(out), err.Error()
 }
 
 func (x *IedConnection) WriteBooleanValue(dataAttributeReference string, fc FunctionalConstraint, value bool) error {
@@ -754,7 +758,7 @@ func (x *IedConnection) WriteBooleanValue(dataAttributeReference string, fc Func
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_writeBooleanValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (C.bool)(value))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) WriteInt32Value(dataAttributeReference string, fc FunctionalConstraint, value int32) error {
@@ -762,7 +766,7 @@ func (x *IedConnection) WriteInt32Value(dataAttributeReference string, fc Functi
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_writeInt32Value(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (C.int32_t)(value))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) WriteUnsigned32Value(dataAttributeReference string, fc FunctionalConstraint, value uint32) error {
@@ -770,7 +774,7 @@ func (x *IedConnection) WriteUnsigned32Value(dataAttributeReference string, fc F
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_writeUnsigned32Value(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (C.uint32_t)(value))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) WriteFloatValue(dataAttributeReference string, fc FunctionalConstraint, value float32) error {
@@ -778,7 +782,7 @@ func (x *IedConnection) WriteFloatValue(dataAttributeReference string, fc Functi
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_writeFloatValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (C.float)(value))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) WriteVisibleStringValue(dataAttributeReference string, fc FunctionalConstraint, value string) error {
@@ -786,7 +790,7 @@ func (x *IedConnection) WriteVisibleStringValue(dataAttributeReference string, f
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_writeVisibleStringValue(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), C.CString(value))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) WriteOctetStringValue(dataAttributeReference string, fc FunctionalConstraint, value []byte) error {
@@ -794,7 +798,7 @@ func (x *IedConnection) WriteOctetStringValue(dataAttributeReference string, fc 
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_writeOctetString(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, (C.FunctionalConstraint)(fc), (*C.uint8_t)(unsafe.SliceData(value)), (C.int)(len(value)))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) GetRCBValues(rcbReference string, updateRcb *ClientReportControlBlock) (ClientReportControlBlock, error) {
@@ -802,10 +806,10 @@ func (x *IedConnection) GetRCBValues(rcbReference string, updateRcb *ClientRepor
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getRCBValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, updateRcb.ctx)
-	return ClientReportControlBlock{ctx: ctx}, IedClientError(err)
+	return ClientReportControlBlock{ctx: ctx}, err.Error()
 }
 
-type GetRCBValuesHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, rcb *ClientReportControlBlock)
+type GetRCBValuesHandler func(invokeId uint32, parameter unsafe.Pointer, err error, rcb *ClientReportControlBlock)
 
 var mapGetRCBValuesHandlers = sync.Map{}
 
@@ -813,7 +817,7 @@ var mapGetRCBValuesHandlers = sync.Map{}
 func fGetRCBValuesHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, rcb C.ClientReportControlBlock) {
 	mapGetRCBValuesHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(GetRCBValuesHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &ClientReportControlBlock{ctx: rcb})
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &ClientReportControlBlock{ctx: rcb})
 		}
 		return true
 	})
@@ -824,7 +828,7 @@ func (x *IedConnection) GetRCBValuesAsync(rcbReference string, updateRcb *Client
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getRCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref, updateRcb.ctx, (C.IedConnection_GetRCBValuesHandler)(C.fGetRCBValuesHandlerGo), parameter)
-	return (uint32)(invokeId), IedClientError(err)
+	return (uint32)(invokeId), err.Error()
 }
 
 type ReasonForInclusion int
@@ -911,7 +915,7 @@ func (x *IedConnection) SetRCBValues(rcbReference string, rcb *ClientReportContr
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_setRCBValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), rcb.ctx, C.uint32_t(parametersMask), C.bool(singleRequest))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) SetRCBValuesAsync(rcbReference string, rcb *ClientReportControlBlock, parametersMask uint32, singleRequest bool, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -921,7 +925,7 @@ func (x *IedConnection) SetRCBValuesAsync(rcbReference string, rcb *ClientReport
 	defer mapGenericServiceHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_setRCBValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), rcb.ctx, C.uint32_t(parametersMask), C.bool(singleRequest), (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
-	return (uint32)(invokeId), IedClientError(err)
+	return (uint32)(invokeId), err.Error()
 }
 
 type ReportCallbackFunction func(parameter unsafe.Pointer, report *ClientReport)
@@ -959,7 +963,7 @@ func (x *IedConnection) TriggerGIReport(rcbReference string) error {
 	defer C.free(unsafe.Pointer(cref))
 	err := IED_ERROR_OK
 	C.IedConnection_triggerGIReport(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cref)
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *ClientReport) GetDataSetName() string {
@@ -1189,10 +1193,10 @@ func (x *IedConnection) ReadDataSetValues(dataSetReference string, dataSet *Clie
 	defer C.free(unsafe.Pointer(cid))
 	err := IED_ERROR_OK
 	out := C.IedConnection_readDataSetValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSet.ctx)
-	return &ClientDataSet{ctx: out}, IedClientError(err)
+	return &ClientDataSet{ctx: out}, err.Error()
 }
 
-type ReadDataSetHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, dataSet *ClientDataSet)
+type ReadDataSetHandler func(invokeId uint32, parameter unsafe.Pointer, err error, dataSet *ClientDataSet)
 
 var mapReadDataSetHandlers = sync.Map{}
 
@@ -1200,7 +1204,7 @@ var mapReadDataSetHandlers = sync.Map{}
 func fReadDataSetHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, dataSet C.ClientDataSet) {
 	mapReadDataSetHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(ReadDataSetHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &ClientDataSet{ctx: dataSet})
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &ClientDataSet{ctx: dataSet})
 		}
 		return true
 	})
@@ -1213,7 +1217,7 @@ func (x *IedConnection) ReadDataSetValuesAsync(dataSetReference string, dataSet 
 	defer mapReadDataSetHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_readDataSetValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSet.ctx, (C.IedConnection_ReadDataSetHandler)(C.fReadDataSetHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) CreateDataSet(dataSetReference string, dataSetElements *LinkedList) error {
@@ -1221,7 +1225,7 @@ func (x *IedConnection) CreateDataSet(dataSetReference string, dataSetElements *
 	defer C.free(unsafe.Pointer(cid))
 	err := IED_ERROR_OK
 	C.IedConnection_createDataSet(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSetElements.ctx)
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) CreateDataSetAsync(dataSetReference string, dataSetElements *LinkedList, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1231,7 +1235,7 @@ func (x *IedConnection) CreateDataSetAsync(dataSetReference string, dataSetEleme
 	defer mapGenericServiceHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_createDataSetAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, dataSetElements.ctx, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) DeleteDataSet(dataSetReference string) error {
@@ -1239,7 +1243,7 @@ func (x *IedConnection) DeleteDataSet(dataSetReference string) error {
 	defer C.free(unsafe.Pointer(cid))
 	err := IED_ERROR_OK
 	C.IedConnection_deleteDataSet(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid)
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) DeleteDataSetAsync(dataSetReference string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1249,7 +1253,7 @@ func (x *IedConnection) DeleteDataSetAsync(dataSetReference string, handler Gene
 	defer mapGenericServiceHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_deleteDataSetAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) GetDataSetDirectory(dataSetReference string, isDeletable *bool) (*LinkedList, error) {
@@ -1257,10 +1261,10 @@ func (x *IedConnection) GetDataSetDirectory(dataSetReference string, isDeletable
 	defer C.free(unsafe.Pointer(cid))
 	err := IED_ERROR_OK
 	out := C.IedConnection_getDataSetDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, (*C.bool)(unsafe.Pointer(isDeletable)))
-	return &LinkedList{ctx: out}, IedClientError(err)
+	return &LinkedList{ctx: out}, err.Error()
 }
 
-type GetDataSetDirectoryHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, dataSetDirectory *LinkedList, isDeletable bool)
+type GetDataSetDirectoryHandler func(invokeId uint32, parameter unsafe.Pointer, err error, dataSetDirectory *LinkedList, isDeletable bool)
 
 var mapGetDataSetDirectoryHandlers = sync.Map{}
 
@@ -1268,7 +1272,7 @@ var mapGetDataSetDirectoryHandlers = sync.Map{}
 func fGetDataSetDirectoryHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, dataSetDirectory C.LinkedList, isDeletable C._Bool) {
 	mapGetDataSetDirectoryHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(GetDataSetDirectoryHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: dataSetDirectory}, bool(isDeletable))
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &LinkedList{ctx: dataSetDirectory}, bool(isDeletable))
 		}
 		return true
 	})
@@ -1281,7 +1285,7 @@ func (x *IedConnection) GetDataSetDirectoryAsync(dataSetReference string, handle
 	defer mapGetDataSetDirectoryHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getDataSetDirectoryAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, (C.IedConnection_GetDataSetDirectoryHandler)(C.fGetDataSetDirectoryHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) WriteDataSetValues(dataSetReference string, values *LinkedList) (*LinkedList, error) {
@@ -1291,12 +1295,12 @@ func (x *IedConnection) WriteDataSetValues(dataSetReference string, values *Link
 	err := IED_ERROR_OK
 	C.IedConnection_writeDataSetValues(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, values.ctx, (*C.LinkedList)(unsafe.Pointer(accessResults)))
 	if accessResults == nil {
-		return nil, IedClientError(err)
+		return nil, err.Error()
 	}
-	return &LinkedList{ctx: *accessResults}, IedClientError(err)
+	return &LinkedList{ctx: *accessResults}, err.Error()
 }
 
-type WriteDataSetHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, accessResults *LinkedList)
+type WriteDataSetHandler func(invokeId uint32, parameter unsafe.Pointer, err error, accessResults *LinkedList)
 
 var mapWriteDataSetHandlers = sync.Map{}
 
@@ -1304,7 +1308,7 @@ var mapWriteDataSetHandlers = sync.Map{}
 func fWriteDataSetHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, accessResults C.LinkedList) {
 	mapWriteDataSetHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(WriteDataSetHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: accessResults})
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &LinkedList{ctx: accessResults})
 		}
 		return true
 	})
@@ -1317,7 +1321,7 @@ func (x *IedConnection) WriteDataSetValuesAsync(dataSetReference string, values 
 	defer mapWriteDataSetHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_writeDataSetValuesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cid, values.ctx, (C.IedConnection_WriteDataSetHandler)(C.fWriteDataSetHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *ClientDataSet) Destroy() {
@@ -1364,7 +1368,7 @@ const (
 	CONTROL_ACTION_TYPE_CANCEL  ControlActionType = C.CONTROL_ACTION_TYPE_CANCEL
 )
 
-type ControlActionHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, type_ ControlActionType, success bool)
+type ControlActionHandler func(invokeId uint32, parameter unsafe.Pointer, err error, type_ ControlActionType, success bool)
 
 var mapControlActionHandlers = sync.Map{}
 
@@ -1372,7 +1376,7 @@ var mapControlActionHandlers = sync.Map{}
 func fControlActionHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, type_ C.ControlActionType, success C._Bool) {
 	mapControlActionHandlers.Range(func(key, value any) bool {
 		if fn, ok := value.(ControlActionHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), ControlActionType(type_), bool(success))
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), ControlActionType(type_), bool(success))
 		}
 		return true
 	})
@@ -1423,7 +1427,7 @@ func (x *ControlObjectClient) OperateAsync(ctlVal *MmsValue, operTime uint64, ha
 	err := IED_ERROR_OK
 	invokeId := C.ControlObjectClient_operateAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), ctlVal.ctx, C.uint64_t(operTime),
 		(C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *ControlObjectClient) SelectAsync(handler ControlActionHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1432,7 +1436,7 @@ func (x *ControlObjectClient) SelectAsync(handler ControlActionHandler, paramete
 	err := IED_ERROR_OK
 	invokeId := C.ControlObjectClient_selectAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)),
 		(C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *ControlObjectClient) SelectWithValueAsync(ctlVal *MmsValue, handler ControlActionHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1440,7 +1444,7 @@ func (x *ControlObjectClient) SelectWithValueAsync(ctlVal *MmsValue, handler Con
 	defer mapControlActionHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.ControlObjectClient_selectWithValueAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), ctlVal.ctx, (C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *ControlObjectClient) CancelAsync(handler ControlActionHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1449,7 +1453,7 @@ func (x *ControlObjectClient) CancelAsync(handler ControlActionHandler, paramete
 	err := IED_ERROR_OK
 	invokeId := C.ControlObjectClient_cancelAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)),
 		(C.ControlObjectClient_ControlActionHandler)(C.fControlActionHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *ControlObjectClient) GetLastApplError() *LastApplError {
@@ -1521,19 +1525,19 @@ func (x *ControlObjectClient) SetCommandTerminationHandler(handler CommandTermin
 func (x *IedConnection) GetDeviceModelFromServer() error {
 	err := IED_ERROR_OK
 	C.IedConnection_getDeviceModelFromServer(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) GetLogicalDeviceList() (*LinkedList, error) {
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getLogicalDeviceList(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)))
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetServerDirectory(getFileNames bool) (*LinkedList, error) {
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getServerDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), C._Bool(getFileNames))
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetLogicalDeviceDirectory(logicalDeviceName string) (*LinkedList, error) {
@@ -1541,7 +1545,7 @@ func (x *IedConnection) GetLogicalDeviceDirectory(logicalDeviceName string) (*Li
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getLogicalDeviceDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetLogicalNodeVariables(logicalNodeReference string) (*LinkedList, error) {
@@ -1549,7 +1553,7 @@ func (x *IedConnection) GetLogicalNodeVariables(logicalNodeReference string) (*L
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getLogicalNodeVariables(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetLogicalNodeDirectory(logicalNodeReference string, acsiClass ACSIClass) (*LinkedList, error) {
@@ -1557,7 +1561,7 @@ func (x *IedConnection) GetLogicalNodeDirectory(logicalNodeReference string, acs
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getLogicalNodeDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.ACSIClass(acsiClass))
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetDataDirectory(dataReference string) (*LinkedList, error) {
@@ -1565,7 +1569,7 @@ func (x *IedConnection) GetDataDirectory(dataReference string) (*LinkedList, err
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getDataDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetDataDirectoryFC(dataReference string) (*LinkedList, error) {
@@ -1573,7 +1577,7 @@ func (x *IedConnection) GetDataDirectoryFC(dataReference string) (*LinkedList, e
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getDataDirectoryFC(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetDataDirectoryByFC(dataReference string, fc FunctionalConstraint) (*LinkedList, error) {
@@ -1581,7 +1585,7 @@ func (x *IedConnection) GetDataDirectoryByFC(dataReference string, fc Functional
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getDataDirectoryByFC(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.FunctionalConstraint(fc))
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetVariableSpecification(dataAttributeReference string, fc FunctionalConstraint) (*MmsVariableSpecification, error) {
@@ -1589,7 +1593,7 @@ func (x *IedConnection) GetVariableSpecification(dataAttributeReference string, 
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getVariableSpecification(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.FunctionalConstraint(fc))
-	return &MmsVariableSpecification{ctx: ctx}, IedClientError(err)
+	return &MmsVariableSpecification{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetLogicalDeviceVariables(ldName string) (*LinkedList, error) {
@@ -1597,7 +1601,7 @@ func (x *IedConnection) GetLogicalDeviceVariables(ldName string) (*LinkedList, e
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getLogicalDeviceVariables(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetLogicalDeviceDataSets(ldName string) (*LinkedList, error) {
@@ -1605,10 +1609,10 @@ func (x *IedConnection) GetLogicalDeviceDataSets(ldName string) (*LinkedList, er
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getLogicalDeviceDataSets(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
-type GetNameListHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, nameList *LinkedList, moreFollows bool)
+type GetNameListHandler func(invokeId uint32, parameter unsafe.Pointer, err error, nameList *LinkedList, moreFollows bool)
 
 var mapGetNameListHandlers = sync.Map{}
 
@@ -1616,7 +1620,7 @@ var mapGetNameListHandlers = sync.Map{}
 func fGetNameListHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, nameList C.LinkedList, moreFollows C._Bool) {
 	if fn, ok := mapGetNameListHandlers.Load(parameter); ok {
 		if fn, ok := fn.(GetNameListHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: nameList}, bool(moreFollows))
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &LinkedList{ctx: nameList}, bool(moreFollows))
 		}
 	}
 }
@@ -1628,7 +1632,7 @@ func (x *IedConnection) GetServerDirectoryAsync(continueAfter string, result *Li
 	defer mapGetNameListHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getServerDirectoryAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, result.ctx, (C.IedConnection_GetNameListHandler)(C.fGetNameListHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) GetLogicalDeviceVariablesAsync(ldName string, continueAfter string, result *LinkedList, handler GetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1640,7 +1644,7 @@ func (x *IedConnection) GetLogicalDeviceVariablesAsync(ldName string, continueAf
 	defer mapGetNameListHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getLogicalDeviceVariablesAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, cstr2, result.ctx, (C.IedConnection_GetNameListHandler)(C.fGetNameListHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) GetLogicalDeviceDataSetsAsync(ldName string, continueAfter string, result *LinkedList, handler GetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1652,10 +1656,10 @@ func (x *IedConnection) GetLogicalDeviceDataSetsAsync(ldName string, continueAft
 	defer mapGetNameListHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getLogicalDeviceDataSetsAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, cstr2, result.ctx, (C.IedConnection_GetNameListHandler)(C.fGetNameListHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
-type GetVariableSpecificationHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, variableSpecification *MmsVariableSpecification)
+type GetVariableSpecificationHandler func(invokeId uint32, parameter unsafe.Pointer, err error, variableSpecification *MmsVariableSpecification)
 
 var mapGetVariableSpecificationHandlers = sync.Map{}
 
@@ -1663,7 +1667,7 @@ var mapGetVariableSpecificationHandlers = sync.Map{}
 func fGetVariableSpecificationHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, variableSpecification *C.MmsVariableSpecification) {
 	if fn, ok := mapGetVariableSpecificationHandlers.Load(parameter); ok {
 		if fn, ok := fn.(GetVariableSpecificationHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &MmsVariableSpecification{ctx: variableSpecification})
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &MmsVariableSpecification{ctx: variableSpecification})
 		}
 	}
 }
@@ -1675,7 +1679,7 @@ func (x *IedConnection) GetVariableSpecificationAsync(dataAttributeReference str
 	defer mapGetVariableSpecificationHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getVariableSpecificationAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.FunctionalConstraint(fc), (C.IedConnection_GetVariableSpecificationHandler)(C.fGetVariableSpecificationHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) QueryLogByTime(logReference string, startTime uint64, endTime uint64, moreFollows *bool) (*LinkedList, error) {
@@ -1683,7 +1687,7 @@ func (x *IedConnection) QueryLogByTime(logReference string, startTime uint64, en
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_queryLogByTime(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.uint64_t(startTime), C.uint64_t(endTime), (*C._Bool)(unsafe.Pointer(moreFollows)))
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) QueryLogAfter(logReference string, entryID *MmsValue, timeStamp uint64, moreFollows *bool) (*LinkedList, error) {
@@ -1691,10 +1695,10 @@ func (x *IedConnection) QueryLogAfter(logReference string, entryID *MmsValue, ti
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_queryLogAfter(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, entryID.ctx, C.uint64_t(timeStamp), (*C._Bool)(unsafe.Pointer(moreFollows)))
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
-type QueryLogHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, journalEntries *LinkedList, moreFollows bool)
+type QueryLogHandler func(invokeId uint32, parameter unsafe.Pointer, err error, journalEntries *LinkedList, moreFollows bool)
 
 var mapQueryLogHandlers = sync.Map{}
 
@@ -1702,7 +1706,7 @@ var mapQueryLogHandlers = sync.Map{}
 func fQueryLogHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, journalEntries C.LinkedList, moreFollows C._Bool) {
 	if fn, ok := mapQueryLogHandlers.Load(parameter); ok {
 		if fn, ok := fn.(QueryLogHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), &LinkedList{ctx: journalEntries}, bool(moreFollows))
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), &LinkedList{ctx: journalEntries}, bool(moreFollows))
 		}
 	}
 }
@@ -1714,7 +1718,7 @@ func (x *IedConnection) QueryLogByTimeAsync(logReference string, startTime uint6
 	defer mapQueryLogHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_queryLogByTimeAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, C.uint64_t(startTime), C.uint64_t(endTime), (C.IedConnection_QueryLogHandler)(C.fQueryLogHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) QueryLogAfterAsync(logReference string, entryID *MmsValue, timeStamp uint64, handler QueryLogHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1724,7 +1728,7 @@ func (x *IedConnection) QueryLogAfterAsync(logReference string, entryID *MmsValu
 	defer mapQueryLogHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_queryLogAfterAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, entryID.ctx, C.uint64_t(timeStamp), (C.IedConnection_QueryLogHandler)(C.fQueryLogHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 type FileDirectoryEntry struct {
@@ -1759,7 +1763,7 @@ func (x *IedConnection) GetFileDirectory(directoryName string) (*LinkedList, err
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getFileDirectory(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
 func (x *IedConnection) GetFileDirectoryEx(directoryName string, continueAfter string, moreFollows *bool) (*LinkedList, error) {
@@ -1769,10 +1773,10 @@ func (x *IedConnection) GetFileDirectoryEx(directoryName string, continueAfter s
 	defer C.free(unsafe.Pointer(cstr2))
 	err := IED_ERROR_OK
 	ctx := C.IedConnection_getFileDirectoryEx(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2, (*C._Bool)(unsafe.Pointer(moreFollows)))
-	return &LinkedList{ctx: ctx}, IedClientError(err)
+	return &LinkedList{ctx: ctx}, err.Error()
 }
 
-type FileDirectoryEntryHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, filename string, size uint32, lastModfified uint64, moreFollows bool)
+type FileDirectoryEntryHandler func(invokeId uint32, parameter unsafe.Pointer, err error, filename string, size uint32, lastModfified uint64, moreFollows bool)
 
 var mapFileDirectoryEntryHandlers = sync.Map{}
 
@@ -1780,7 +1784,7 @@ var mapFileDirectoryEntryHandlers = sync.Map{}
 func fFileDirectoryEntryHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, filename *C.char, size C.uint32_t, lastModfified C.uint64_t, moreFollows C._Bool) {
 	if fn, ok := mapFileDirectoryEntryHandlers.Load(parameter); ok {
 		if fn, ok := fn.(FileDirectoryEntryHandler); ok {
-			fn(uint32(invokeId), parameter, IedClientError(err), C.GoString(filename), uint32(size), uint64(lastModfified), bool(moreFollows))
+			fn(uint32(invokeId), parameter, IedClientError(err).Error(), C.GoString(filename), uint32(size), uint64(lastModfified), bool(moreFollows))
 		}
 	}
 }
@@ -1794,7 +1798,7 @@ func (x *IedConnection) GetFileDirectoryAsyncEx(directoryName string, continueAf
 	defer mapFileDirectoryEntryHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getFileDirectoryAsyncEx(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.IedConnection_FileDirectoryEntryHandler)(C.fFileDirectoryEntryHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 type IedClientGetFileHandler func(parameter unsafe.Pointer, buffer []byte) bool
@@ -1818,10 +1822,10 @@ func (x *IedConnection) GetFile(fileName string, handler IedClientGetFileHandler
 	defer mapIedClientGetFileHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	bytesRead := C.IedConnection_getFile(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, (C.IedConnection_GetFileAsyncHandler)(C.fIedClientGetFileHandlerGo), parameter)
-	return uint32(bytesRead), IedClientError(err)
+	return uint32(bytesRead), err.Error()
 }
 
-type GetFileAsyncHandler func(invokeId uint32, parameter unsafe.Pointer, err IedClientError, originalInvokeId uint32, buffer []byte, moreFollows bool) bool
+type GetFileAsyncHandler func(invokeId uint32, parameter unsafe.Pointer, err error, originalInvokeId uint32, buffer []byte, moreFollows bool) bool
 
 var mapGetFileAsyncHandlers = sync.Map{}
 
@@ -1829,7 +1833,7 @@ var mapGetFileAsyncHandlers = sync.Map{}
 func fGetFileAsyncHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, err C.IedClientError, originalInvokeId C.uint32_t, buffer *C.uint8_t, bytesRead C.uint32_t, moreFollows C._Bool) C._Bool {
 	if fn, ok := mapGetFileAsyncHandlers.Load(parameter); ok {
 		if fn, ok := fn.(GetFileAsyncHandler); ok {
-			return C._Bool(fn(uint32(invokeId), parameter, IedClientError(err), uint32(originalInvokeId), C.GoBytes(unsafe.Pointer(buffer), C.int(bytesRead)), bool(moreFollows)))
+			return C._Bool(fn(uint32(invokeId), parameter, IedClientError(err).Error(), uint32(originalInvokeId), C.GoBytes(unsafe.Pointer(buffer), C.int(bytesRead)), bool(moreFollows)))
 		}
 	}
 	return C._Bool(false)
@@ -1842,7 +1846,7 @@ func (x *IedConnection) GetFileAsync(fileName string, handler GetFileAsyncHandle
 	defer mapGetFileAsyncHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_getFileAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, (C.IedConnection_GetFileAsyncHandler)(C.fGetFileAsyncHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) SetFilestoreBasepath(basepath string) {
@@ -1858,7 +1862,7 @@ func (x *IedConnection) SetFile(sourceFilename string, destinationFilename strin
 	defer C.free(unsafe.Pointer(cstr2))
 	err := IED_ERROR_OK
 	C.IedConnection_setFile(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2)
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) SetFileAsync(sourceFilename string, destinationFilename string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1870,7 +1874,7 @@ func (x *IedConnection) SetFileAsync(sourceFilename string, destinationFilename 
 	defer mapGenericServiceHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_setFileAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr1, cstr2, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }
 
 func (x *IedConnection) DeleteFile(fileName string) error {
@@ -1878,7 +1882,7 @@ func (x *IedConnection) DeleteFile(fileName string) error {
 	defer C.free(unsafe.Pointer(cstr))
 	err := IED_ERROR_OK
 	C.IedConnection_deleteFile(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr)
-	return IedClientError(err)
+	return err.Error()
 }
 
 func (x *IedConnection) DeleteFileAsync(fileName string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
@@ -1888,5 +1892,5 @@ func (x *IedConnection) DeleteFileAsync(fileName string, handler GenericServiceH
 	defer mapGenericServiceHandlers.Delete(handler)
 	err := IED_ERROR_OK
 	invokeId := C.IedConnection_deleteFileAsync(x.ctx, (*C.IedClientError)(unsafe.Pointer(&err)), cstr, (C.IedConnection_GenericServiceHandler)(C.fGenericServiceHandlerGo), parameter)
-	return uint32(invokeId), IedClientError(err)
+	return uint32(invokeId), err.Error()
 }

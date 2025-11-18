@@ -585,9 +585,3 @@ func (x *MmsValue) GetMaxEncodedSize() int {
 func (x *MmsVariableSpecification) GetMaxEncodedSize() int {
 	return int(C.MmsVariableSpecification_getMaxEncodedSize(x.ctx))
 }
-
-// String returns the string representation of an MmsError.
-// Returns: the string representation of the MmsError
-func (x *MmsError) String() string {
-	return C.GoString(C.MmsError_toString(C.MmsError(*x)))
-}

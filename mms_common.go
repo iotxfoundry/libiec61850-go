@@ -9,6 +9,7 @@ package libiec61850go
 
 */
 import "C"
+import "errors"
 
 // MmsError represents MMS error codes.
 type MmsError int32
@@ -126,6 +127,17 @@ const (
 	// MMS_ERROR_REJECT_REQUEST_INVALID_ARGUMENT indicates an invalid argument in the request.
 	MMS_ERROR_REJECT_REQUEST_INVALID_ARGUMENT MmsError = C.MMS_ERROR_REJECT_REQUEST_INVALID_ARGUMENT
 )
+
+func (x MmsError) Error() error {
+	if x == MMS_ERROR_NONE {
+		return nil
+	}
+	return errors.New(x.String())
+}
+
+func (x MmsError) String() string {
+	return C.GoString(C.MmsError_toString(C.MmsError(x)))
+}
 
 // MmsType represents MMS data types.
 type MmsType int32
