@@ -109,13 +109,13 @@ func MmsConnectionCreate() *MmsConnection {
 	return &MmsConnection{ctx: C.MmsConnection_create()}
 }
 
-// func MmsConnectionCreateSecure(tlsConfig *TLSConfiguration) *MmsConnection {
-// 	return &MmsConnection{ctx: C.MmsConnection_createSecure(tlsConfig.ctx)}
-// }
+func MmsConnectionCreateSecure(tlsConfig *TLSConfiguration) *MmsConnection {
+	return &MmsConnection{ctx: C.MmsConnection_createSecure(tlsConfig.ctx)}
+}
 
-// func MmsConnectionCreateNonThreaded(tlsConfig *TLSConfiguration) *MmsConnection {
-// 	return &MmsConnection{ctx: C.MmsConnection_createNonThreaded(tlsConfig.ctx)}
-// }
+func MmsConnectionCreateNonThreaded(tlsConfig *TLSConfiguration) *MmsConnection {
+	return &MmsConnection{ctx: C.MmsConnection_createNonThreaded(tlsConfig.ctx)}
+}
 
 type MmsRawMessageHandler func(parameter unsafe.Pointer, message []byte, received bool)
 

@@ -189,17 +189,17 @@ func IedConnectionCreate() *IedConnection {
 	}
 }
 
-// func IedConnectionCreateEx(tlsConfig *TLSConfiguration, useThreads bool) *IedConnection {
-// 	return &IedConnection{
-// 		ctx: C.IedConnection_createEx(tlsConfig.ctx, C.bool(useThreads)),
-// 	}
-// }
+func IedConnectionCreateEx(tlsConfig *TLSConfiguration, useThreads bool) *IedConnection {
+	return &IedConnection{
+		ctx: C.IedConnection_createEx(tlsConfig.ctx, C.bool(useThreads)),
+	}
+}
 
-// func IedConnectionCreateWithTlsSupport(tlsConfig *TLSConfiguration) *IedConnection {
-// 	return &IedConnection{
-// 		ctx: C.IedConnection_createWithTlsSupport(tlsConfig.ctx),
-// 	}
-// }
+func IedConnectionCreateWithTlsSupport(tlsConfig *TLSConfiguration) *IedConnection {
+	return &IedConnection{
+		ctx: C.IedConnection_createWithTlsSupport(tlsConfig.ctx),
+	}
+}
 
 func (x *IedConnection) Destroy() {
 	C.IedConnection_destroy(x.ctx)
