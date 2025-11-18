@@ -6,6 +6,22 @@ package libiec61850go
 
 extern bool fAcseAuthenticatorGo(void* parameter, AcseAuthenticationParameter authParameter, void** securityToken, IsoApplicationReference* appReference);
 extern void fIedConnectionIndicationHandlerGo(IedServer self, ClientConnection connection, bool connected, void* parameter);
+extern bool fActiveSettingGroupChangedHandlerGo(void* parameter, SettingGroupControlBlock* sgcb, uint8_t newActSg, ClientConnection connection);
+extern bool fEditSettingGroupChangedHandlerGo(void* parameter, SettingGroupControlBlock* sgcb, uint8_t newEditSg, ClientConnection connection);
+extern void fEditSettingGroupConfirmationHandlerGo(void* parameter, SettingGroupControlBlock* sgcb, uint8_t editSg);
+extern CheckHandlerResult fControlPerformCheckHandlerGo(ControlAction action, void* parameter, MmsValue* ctlVal, bool test, bool interlockCheck);
+extern ControlHandlerResult fControlWaitForExecutionHandlerGo(ControlAction action, void* parameter, MmsValue* ctlVal, bool test, bool interlockCheck);
+extern ControlHandlerResult fControlHandlerGo(ControlAction action, void* parameter, MmsValue* ctlVal, bool test);
+extern void fControlSelectStateChangedHandlerGo(ControlAction action, void* parameter, bool isSelected, SelectStateChangedReason reason);
+extern void fRCBEventHandlerGo(void* parameter, ReportControlBlock* rcb, ClientConnection connection, IedServer_RCBEventType event, char* parameterName, MmsDataAccessError serviceError);
+extern void fSVCBEventHandlerGo(SVControlBlock* svcb, int event, void* parameter);
+extern void fGoCBEventHandlerGo(MmsGooseControlBlock goCb, int event, void* parameter);
+extern MmsDataAccessError fWriteAccessHandlerGo(DataAttribute* dataAttribute, MmsValue* value, ClientConnection connection, void* parameter);
+extern MmsDataAccessError fReadAccessHandlerGo (LogicalDevice* ld, LogicalNode* ln, DataObject* dataObject, FunctionalConstraint fc, ClientConnection connection, void* parameter);
+extern bool fDataSetAccessHandlerGo(void* parameter, ClientConnection connection, IedServer_DataSetOperation operation, char* datasetRef);
+extern bool fListObjectsAccessHandlerGo(void* parameter, ClientConnection connection, ACSIClass acsiClass, LogicalDevice* ld, LogicalNode* ln, char* objectName, char* subObjectName, FunctionalConstraint fc);
+extern bool fControlBlockAccessHandlerGo(void* parameter, ClientConnection connection, ACSIClass acsiClass, LogicalDevice* ld, LogicalNode* ln, char* objectName, char* subObjectName, IedServer_ControlBlockAccessType accessType);
+extern bool fDirectoryAccessHandlerGo(void* parameter, ClientConnection connection, IedServer_DirectoryCategory category, LogicalDevice* logicalDevice);
 */
 import "C"
 import (
@@ -457,4 +473,510 @@ func (x *IedServer) ChangeActiveSettingGroup(sgcb *SettingGroupControlBlock, new
 
 func (x *IedServer) GetActiveSettingGroup(sgcb *SettingGroupControlBlock) uint8 {
 	return uint8(C.IedServer_getActiveSettingGroup(x.ctx, sgcb.ctx))
+}
+
+type ActiveSettingGroupChangedHandler func(parameter unsafe.Pointer, sgcb *SettingGroupControlBlock, newActSg uint8, connection *ClientConnection) bool
+
+var mapActiveSettingGroupChangedHandlers = sync.Map{}
+
+//export fActiveSettingGroupChangedHandlerGo
+func fActiveSettingGroupChangedHandlerGo(parameter unsafe.Pointer, sgcb *C.SettingGroupControlBlock, newActSg C.uint8_t, connection C.ClientConnection) C._Bool {
+	ret := false
+	mapActiveSettingGroupChangedHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ActiveSettingGroupChangedHandler); ok {
+			ret = fn(parameter, &SettingGroupControlBlock{ctx: sgcb}, uint8(newActSg), &ClientConnection{ctx: connection})
+		}
+		return true
+	})
+	return C._Bool(ret)
+}
+
+func (x *IedServer) SetActiveSettingGroupChangedHandler(sgcb *SettingGroupControlBlock, handler ActiveSettingGroupChangedHandler, parameter unsafe.Pointer) {
+	C.IedServer_setActiveSettingGroupChangedHandler(x.ctx, sgcb.ctx, C.ActiveSettingGroupChangedHandler(C.fActiveSettingGroupChangedHandlerGo), parameter)
+}
+
+type EditSettingGroupChangedHandler func(parameter unsafe.Pointer, sgcb *SettingGroupControlBlock, newEditSg uint8, connection *ClientConnection) bool
+
+var mapEditSettingGroupChangedHandlers = sync.Map{}
+
+//export fEditSettingGroupChangedHandlerGo
+func fEditSettingGroupChangedHandlerGo(parameter unsafe.Pointer, sgcb *C.SettingGroupControlBlock, newEditSg C.uint8_t, connection C.ClientConnection) C._Bool {
+	ret := false
+	mapEditSettingGroupChangedHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(EditSettingGroupChangedHandler); ok {
+			ret = fn(parameter, &SettingGroupControlBlock{ctx: sgcb}, uint8(newEditSg), &ClientConnection{ctx: connection})
+		}
+		return true
+	})
+	return C._Bool(ret)
+}
+
+func (x *IedServer) SetEditSettingGroupChangedHandler(sgcb *SettingGroupControlBlock, handler EditSettingGroupChangedHandler, parameter unsafe.Pointer) {
+	C.IedServer_setEditSettingGroupChangedHandler(x.ctx, sgcb.ctx, C.EditSettingGroupChangedHandler(C.fEditSettingGroupChangedHandlerGo), parameter)
+}
+
+type EditSettingGroupConfirmationHandler func(parameter unsafe.Pointer, sgcb *SettingGroupControlBlock, editSg uint8)
+
+var mapEditSettingGroupConfirmationHandlers = sync.Map{}
+
+//export fEditSettingGroupConfirmationHandlerGo
+func fEditSettingGroupConfirmationHandlerGo(parameter unsafe.Pointer, sgcb *C.SettingGroupControlBlock, editSg C.uint8_t) {
+	mapEditSettingGroupConfirmationHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(EditSettingGroupConfirmationHandler); ok {
+			fn(parameter, &SettingGroupControlBlock{ctx: sgcb}, uint8(editSg))
+		}
+		return true
+	})
+}
+
+func (x *IedServer) SetEditSettingGroupConfirmationHandler(sgcb *SettingGroupControlBlock, handler EditSettingGroupConfirmationHandler, parameter unsafe.Pointer) {
+	C.IedServer_setEditSettingGroupConfirmationHandler(x.ctx, sgcb.ctx, C.EditSettingGroupConfirmationHandler(C.fEditSettingGroupConfirmationHandlerGo), parameter)
+}
+
+type CheckHandlerResult int32
+
+const (
+	CONTROL_ACCEPTED                CheckHandlerResult = C.CONTROL_ACCEPTED
+	CONTROL_WAITING_FOR_SELECT      CheckHandlerResult = C.CONTROL_WAITING_FOR_SELECT
+	CONTROL_HARDWARE_FAULT          CheckHandlerResult = C.CONTROL_HARDWARE_FAULT
+	CONTROL_TEMPORARILY_UNAVAILABLE CheckHandlerResult = C.CONTROL_TEMPORARILY_UNAVAILABLE
+	CONTROL_OBJECT_ACCESS_DENIED    CheckHandlerResult = C.CONTROL_OBJECT_ACCESS_DENIED
+	CONTROL_OBJECT_UNDEFINED        CheckHandlerResult = C.CONTROL_OBJECT_UNDEFINED
+	CONTROL_VALUE_INVALID           CheckHandlerResult = C.CONTROL_VALUE_INVALID
+)
+
+type ControlHandlerResult int32
+
+const (
+	CONTROL_RESULT_FAILED  ControlHandlerResult = C.CONTROL_RESULT_FAILED
+	CONTROL_RESULT_OK      ControlHandlerResult = C.CONTROL_RESULT_OK
+	CONTROL_RESULT_WAITING ControlHandlerResult = C.CONTROL_RESULT_WAITING
+)
+
+type ControlAction struct {
+	ctx C.ControlAction
+}
+
+func (x *ControlAction) SetError(error ControlLastApplError) {
+	C.ControlAction_setError(x.ctx, C.ControlLastApplError(error))
+}
+
+func (x *ControlAction) SetAddCause(addCause ControlAddCause) {
+	C.ControlAction_setAddCause(x.ctx, C.ControlAddCause(addCause))
+}
+
+func (x *ControlAction) GetOrCat() int {
+	return int(C.ControlAction_getOrCat(x.ctx))
+}
+
+func (x *ControlAction) GetOrIdent() []byte {
+	var orIdentSize C.int
+	orIdent := C.ControlAction_getOrIdent(x.ctx, &orIdentSize)
+	return C.GoBytes(unsafe.Pointer(orIdent), C.int(orIdentSize))
+}
+
+func (x *ControlAction) GetCtlNum() int {
+	return int(C.ControlAction_getCtlNum(x.ctx))
+}
+
+func (x *ControlAction) GetSynchroCheck() bool {
+	return bool(C.ControlAction_getSynchroCheck(x.ctx))
+}
+
+func (x *ControlAction) GetInterlockCheck() bool {
+	return bool(C.ControlAction_getInterlockCheck(x.ctx))
+}
+
+func (x *ControlAction) IsSelect() bool {
+	return bool(C.ControlAction_isSelect(x.ctx))
+}
+
+func (x *ControlAction) GetClientConnection() *ClientConnection {
+	return &ClientConnection{ctx: C.ControlAction_getClientConnection(x.ctx)}
+}
+
+func (x *ControlAction) GetControlObject() *DataObject {
+	return &DataObject{ctx: C.ControlAction_getControlObject(x.ctx)}
+}
+
+func (x *ControlAction) GetControlTime() uint64 {
+	return uint64(C.ControlAction_getControlTime(x.ctx))
+}
+
+func (x *ControlAction) GetT() *Timestamp {
+	return &Timestamp{ctx: C.ControlAction_getT(x.ctx)}
+}
+
+type ControlPerformCheckHandler func(action *ControlAction, parameter unsafe.Pointer, ctlVal *MmsValue, test bool, interlockCheck bool) CheckHandlerResult
+
+var mapControlPerformCheckHandlers = sync.Map{}
+
+//export fControlPerformCheckHandlerGo
+func fControlPerformCheckHandlerGo(action C.ControlAction, parameter unsafe.Pointer, ctlVal *C.MmsValue, test C._Bool, interlockCheck C._Bool) C.CheckHandlerResult {
+	ret := CONTROL_ACCEPTED
+	mapControlPerformCheckHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ControlPerformCheckHandler); ok {
+			ret = fn(&ControlAction{ctx: action}, parameter, &MmsValue{ctx: ctlVal}, bool(test), bool(interlockCheck))
+		}
+		return true
+	})
+	return C.CheckHandlerResult(ret)
+}
+
+type ControlWaitForExecutionHandler func(action *ControlAction, parameter unsafe.Pointer, ctlVal *MmsValue, test bool, synchroCheck bool) ControlHandlerResult
+
+var mapControlWaitForExecutionHandlers = sync.Map{}
+
+//export fControlWaitForExecutionHandlerGo
+func fControlWaitForExecutionHandlerGo(action C.ControlAction, parameter unsafe.Pointer, ctlVal *C.MmsValue, test C._Bool, synchroCheck C._Bool) C.ControlHandlerResult {
+	ret := CONTROL_RESULT_OK
+	mapControlWaitForExecutionHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ControlWaitForExecutionHandler); ok {
+			ret = fn(&ControlAction{ctx: action}, parameter, &MmsValue{ctx: ctlVal}, bool(test), bool(synchroCheck))
+		}
+		return true
+	})
+	return C.ControlHandlerResult(ret)
+}
+
+type ControlHandler func(action *ControlAction, parameter unsafe.Pointer, ctlVal *MmsValue, test bool) ControlHandlerResult
+
+var mapControlHandlers = sync.Map{}
+
+//export fControlHandlerGo
+func fControlHandlerGo(action C.ControlAction, parameter unsafe.Pointer, ctlVal *C.MmsValue, test C._Bool) C.ControlHandlerResult {
+	ret := CONTROL_RESULT_OK
+	mapControlHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ControlHandler); ok {
+			ret = fn(&ControlAction{ctx: action}, parameter, &MmsValue{ctx: ctlVal}, bool(test))
+		}
+		return true
+	})
+	return C.ControlHandlerResult(ret)
+}
+
+type SelectStateChangedReason int32
+
+const (
+	SELECT_STATE_REASON_SELECTED       SelectStateChangedReason = C.SELECT_STATE_REASON_SELECTED
+	SELECT_STATE_REASON_CANCELED       SelectStateChangedReason = C.SELECT_STATE_REASON_CANCELED
+	SELECT_STATE_REASON_TIMEOUT        SelectStateChangedReason = C.SELECT_STATE_REASON_TIMEOUT
+	SELECT_STATE_REASON_OPERATED       SelectStateChangedReason = C.SELECT_STATE_REASON_OPERATED
+	SELECT_STATE_REASON_OPERATE_FAILED SelectStateChangedReason = C.SELECT_STATE_REASON_OPERATE_FAILED
+	SELECT_STATE_REASON_DISCONNECTED   SelectStateChangedReason = C.SELECT_STATE_REASON_DISCONNECTED
+)
+
+type ControlSelectStateChangedHandler func(action *ControlAction, parameter unsafe.Pointer, isSelected bool, reason SelectStateChangedReason)
+
+var mapControlSelectStateChangedHandlers = sync.Map{}
+
+//export fControlSelectStateChangedHandlerGo
+func fControlSelectStateChangedHandlerGo(action C.ControlAction, parameter unsafe.Pointer, isSelected C._Bool, reason C.SelectStateChangedReason) {
+	mapControlSelectStateChangedHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ControlSelectStateChangedHandler); ok {
+			fn(&ControlAction{ctx: action}, parameter, bool(isSelected), SelectStateChangedReason(reason))
+		}
+		return true
+	})
+}
+
+func (x *IedServer) SetControlHandler(node *DataObject, handler ControlHandler, parameter unsafe.Pointer) {
+	C.IedServer_setControlHandler(x.ctx, node.ctx, C.ControlHandler(C.fControlHandlerGo), parameter)
+}
+
+func (x *IedServer) SetPerformCheckHandler(node *DataObject, handler ControlPerformCheckHandler, parameter unsafe.Pointer) {
+	C.IedServer_setPerformCheckHandler(x.ctx, node.ctx, C.ControlPerformCheckHandler(C.fControlPerformCheckHandlerGo), parameter)
+}
+
+func (x *IedServer) SetWaitForExecutionHandler(node *DataObject, handler ControlWaitForExecutionHandler, parameter unsafe.Pointer) {
+	C.IedServer_setWaitForExecutionHandler(x.ctx, node.ctx, C.ControlWaitForExecutionHandler(C.fControlWaitForExecutionHandlerGo), parameter)
+}
+
+func (x *IedServer) SetSelectStateChangedHandler(node *DataObject, handler ControlSelectStateChangedHandler, parameter unsafe.Pointer) {
+	C.IedServer_setSelectStateChangedHandler(x.ctx, node.ctx, C.ControlSelectStateChangedHandler(C.fControlSelectStateChangedHandlerGo), parameter)
+}
+
+func (x *IedServer) UpdateCtlModel(node *DataObject, value ControlModel) {
+	C.IedServer_updateCtlModel(x.ctx, node.ctx, C.ControlModel(value))
+}
+
+type RCBEventType int32
+
+const (
+	RCB_EVENT_GET_PARAMETER  RCBEventType = C.RCB_EVENT_GET_PARAMETER
+	RCB_EVENT_SET_PARAMETER  RCBEventType = C.RCB_EVENT_SET_PARAMETER
+	RCB_EVENT_UNRESERVED     RCBEventType = C.RCB_EVENT_UNRESERVED
+	RCB_EVENT_RESERVED       RCBEventType = C.RCB_EVENT_RESERVED
+	RCB_EVENT_ENABLE         RCBEventType = C.RCB_EVENT_ENABLE
+	RCB_EVENT_DISABLE        RCBEventType = C.RCB_EVENT_DISABLE
+	RCB_EVENT_GI             RCBEventType = C.RCB_EVENT_GI
+	RCB_EVENT_PURGEBUF       RCBEventType = C.RCB_EVENT_PURGEBUF
+	RCB_EVENT_OVERFLOW       RCBEventType = C.RCB_EVENT_OVERFLOW
+	RCB_EVENT_REPORT_CREATED RCBEventType = C.RCB_EVENT_REPORT_CREATED
+)
+
+type RCBEventHandler func(parameter unsafe.Pointer, rcb *ReportControlBlock, connection *ClientConnection, event RCBEventType, parameterName string, serviceError MmsDataAccessError)
+
+var mapRCBEventHandlers = sync.Map{}
+
+//export fRCBEventHandlerGo
+func fRCBEventHandlerGo(parameter unsafe.Pointer, rcb *C.ReportControlBlock, connection C.ClientConnection, event C.IedServer_RCBEventType, parameterName *C.char, serviceError C.MmsDataAccessError) {
+	mapRCBEventHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(RCBEventHandler); ok {
+			fn(parameter, &ReportControlBlock{ctx: rcb}, &ClientConnection{ctx: connection}, RCBEventType(event), C.GoString(parameterName), MmsDataAccessError(serviceError))
+		}
+		return true
+	})
+}
+
+func (x *IedServer) SetRCBEventHandler(handler RCBEventHandler, parameter unsafe.Pointer) {
+	C.IedServer_setRCBEventHandler(x.ctx, C.IedServer_RCBEventHandler(C.fRCBEventHandlerGo), parameter)
+}
+
+const (
+	IEC61850_SVCB_EVENT_ENABLE  = C.IEC61850_SVCB_EVENT_ENABLE
+	IEC61850_SVCB_EVENT_DISABLE = C.IEC61850_SVCB_EVENT_DISABLE
+)
+
+type SVCBEventHandler func(svcb *SVControlBlock, event int32, parameter unsafe.Pointer)
+
+var mapSVCBEventHandlers = sync.Map{}
+
+//export fSVCBEventHandlerGo
+func fSVCBEventHandlerGo(svcb *C.SVControlBlock, event C.int32_t, parameter unsafe.Pointer) {
+	mapSVCBEventHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(SVCBEventHandler); ok {
+			fn(&SVControlBlock{ctx: svcb}, int32(event), parameter)
+		}
+		return true
+	})
+}
+
+func (x *IedServer) SetSVCBEventHandler(svcb *SVControlBlock, handler SVCBEventHandler, parameter unsafe.Pointer) {
+	C.IedServer_setSVCBHandler(x.ctx, svcb.ctx, C.SVCBEventHandler(C.fSVCBEventHandlerGo), parameter)
+}
+
+type MmsGooseControlBlock struct {
+	ctx C.MmsGooseControlBlock
+}
+
+const (
+	IEC61850_GOCB_EVENT_ENABLE  = C.IEC61850_GOCB_EVENT_ENABLE
+	IEC61850_GOCB_EVENT_DISABLE = C.IEC61850_GOCB_EVENT_DISABLE
+)
+
+type GoCBEventHandler func(goCb *MmsGooseControlBlock, event int32, parameter unsafe.Pointer)
+
+var mapGoCBEventHandlers = sync.Map{}
+
+//export fGoCBEventHandlerGo
+func fGoCBEventHandlerGo(goCb C.MmsGooseControlBlock, event C.int32_t, parameter unsafe.Pointer) {
+	mapGoCBEventHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(GoCBEventHandler); ok {
+			fn(&MmsGooseControlBlock{ctx: goCb}, int32(event), parameter)
+		}
+		return true
+	})
+}
+
+func (x *IedServer) SetGoCBEventHandler(handler GoCBEventHandler, parameter unsafe.Pointer) {
+	C.IedServer_setGoCBHandler(x.ctx, C.GoCBEventHandler(C.fGoCBEventHandlerGo), parameter)
+}
+
+func (x *MmsGooseControlBlock) GetName() string {
+	return C.GoString(C.MmsGooseControlBlock_getName(x.ctx))
+}
+
+func (x *MmsGooseControlBlock) GetLogicalNode() *LogicalNode {
+	return &LogicalNode{ctx: C.MmsGooseControlBlock_getLogicalNode(x.ctx)}
+}
+
+func (x *MmsGooseControlBlock) GetDataSet() *DataSet {
+	return &DataSet{ctx: C.MmsGooseControlBlock_getDataSet(x.ctx)}
+}
+
+func (x *MmsGooseControlBlock) GetGoEna() bool {
+	return bool(C.MmsGooseControlBlock_getGoEna(x.ctx))
+}
+func (x *MmsGooseControlBlock) GetMinTime() int {
+	return int(C.MmsGooseControlBlock_getMinTime(x.ctx))
+}
+func (x *MmsGooseControlBlock) GetMaxTime() int {
+	return int(C.MmsGooseControlBlock_getMaxTime(x.ctx))
+}
+
+func (x *MmsGooseControlBlock) GetFixedOffs() bool {
+	return bool(C.MmsGooseControlBlock_getFixedOffs(x.ctx))
+}
+func (x *MmsGooseControlBlock) GetNdsCom() bool {
+	return bool(C.MmsGooseControlBlock_getNdsCom(x.ctx))
+}
+
+type WriteAccessHandler func(dataAttribute *DataAttribute, value *MmsValue, connection *ClientConnection, parameter unsafe.Pointer) MmsDataAccessError
+
+var mapWriteAccessHandlers = sync.Map{}
+
+//export fWriteAccessHandlerGo
+func fWriteAccessHandlerGo(dataAttribute *C.DataAttribute, value *C.MmsValue, connection C.ClientConnection, parameter unsafe.Pointer) C.MmsDataAccessError {
+	ret := DATA_ACCESS_ERROR_UNKNOWN
+	mapWriteAccessHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(WriteAccessHandler); ok {
+			ret = fn(&DataAttribute{ctx: dataAttribute}, &MmsValue{ctx: value}, &ClientConnection{ctx: connection}, parameter)
+		}
+		return true
+	})
+	return C.MmsDataAccessError(ret)
+}
+
+func (x *IedServer) HandleWriteAccess(dataAttribute *DataAttribute, handler WriteAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_handleWriteAccess(x.ctx, dataAttribute.ctx, C.WriteAccessHandler(C.fWriteAccessHandlerGo), parameter)
+}
+
+func (x *IedServer) HandleWriteAccessForComplexAttribute(dataAttribute *DataAttribute, handler WriteAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_handleWriteAccessForComplexAttribute(x.ctx, dataAttribute.ctx, C.WriteAccessHandler(C.fWriteAccessHandlerGo), parameter)
+}
+
+func (x *IedServer) HandleWriteAccessForDataObject(dataObject *DataObject, fc FunctionalConstraint, handler WriteAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_handleWriteAccessForDataObject(x.ctx, dataObject.ctx, C.FunctionalConstraint(fc), C.WriteAccessHandler(C.fWriteAccessHandlerGo), parameter)
+}
+
+type AccessPolicy int32
+
+const (
+	ACCESS_POLICY_ALLOW AccessPolicy = C.ACCESS_POLICY_ALLOW
+	ACCESS_POLICY_DENY  AccessPolicy = C.ACCESS_POLICY_DENY
+)
+
+func (x *IedServer) SetWriteAccessPolicy(fc FunctionalConstraint, policy AccessPolicy) {
+	C.IedServer_setWriteAccessPolicy(x.ctx, C.FunctionalConstraint(fc), C.AccessPolicy(policy))
+}
+
+type ReadAccessHandler func(ld *LogicalDevice, ln *LogicalNode, dataObject *DataObject, fc FunctionalConstraint, connection *ClientConnection, parameter unsafe.Pointer) MmsDataAccessError
+
+var mapReadAccessHandlers = sync.Map{}
+
+//export fReadAccessHandlerGo
+func fReadAccessHandlerGo(ld *C.LogicalDevice, ln *C.LogicalNode, dataObject *C.DataObject, fc C.FunctionalConstraint, connection C.ClientConnection, parameter unsafe.Pointer) C.MmsDataAccessError {
+	ret := DATA_ACCESS_ERROR_UNKNOWN
+	mapReadAccessHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ReadAccessHandler); ok {
+			ret = fn(&LogicalDevice{ctx: ld}, &LogicalNode{ctx: ln}, &DataObject{ctx: dataObject}, FunctionalConstraint(fc), &ClientConnection{ctx: connection}, parameter)
+		}
+		return true
+	})
+	return C.MmsDataAccessError(ret)
+}
+
+func (x *IedServer) SetReadAccessHandler(handler ReadAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_setReadAccessHandler(x.ctx, C.ReadAccessHandler(C.fReadAccessHandlerGo), parameter)
+}
+
+type DataSetOperation int32
+
+const (
+	DATASET_CREATE        DataSetOperation = C.DATASET_CREATE
+	DATASET_DELETE        DataSetOperation = C.DATASET_DELETE
+	DATASET_READ          DataSetOperation = C.DATASET_READ
+	DATASET_WRITE         DataSetOperation = C.DATASET_WRITE
+	DATASET_GET_DIRECTORY DataSetOperation = C.DATASET_GET_DIRECTORY
+)
+
+type DataSetAccessHandler func(parameter unsafe.Pointer, connection *ClientConnection, operation DataSetOperation, datasetRef string) bool
+
+var mapDataSetAccessHandlers = sync.Map{}
+
+//export fDataSetAccessHandlerGo
+func fDataSetAccessHandlerGo(parameter unsafe.Pointer, connection C.ClientConnection, operation C.IedServer_DataSetOperation, datasetRef *C.char) C._Bool {
+	ret := false
+	mapDataSetAccessHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(DataSetAccessHandler); ok {
+			ret = fn(parameter, &ClientConnection{ctx: connection}, DataSetOperation(operation), C.GoString(datasetRef))
+		}
+		return true
+	})
+	return C.bool(ret)
+}
+
+func (x *IedServer) SetDataSetAccessHandler(handler DataSetAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_setDataSetAccessHandler(x.ctx, C.IedServer_DataSetAccessHandler(C.fDataSetAccessHandlerGo), parameter)
+}
+
+type DirectoryCategory int32
+
+const (
+	DIRECTORY_CAT_LD_LIST      DirectoryCategory = C.DIRECTORY_CAT_LD_LIST
+	DIRECTORY_CAT_DATA_LIST    DirectoryCategory = C.DIRECTORY_CAT_DATA_LIST
+	DIRECTORY_CAT_DATASET_LIST DirectoryCategory = C.DIRECTORY_CAT_DATASET_LIST
+	DIRECTORY_CAT_LOG_LIST     DirectoryCategory = C.DIRECTORY_CAT_LOG_LIST
+)
+
+type DirectoryAccessHandler func(parameter unsafe.Pointer, connection *ClientConnection, category DirectoryCategory, logicalDevice *LogicalDevice) bool
+
+var mapDirectoryAccessHandlers = sync.Map{}
+
+//export fDirectoryAccessHandlerGo
+func fDirectoryAccessHandlerGo(parameter unsafe.Pointer, connection C.ClientConnection, category C.IedServer_DirectoryCategory, logicalDevice *C.LogicalDevice) C._Bool {
+	ret := false
+	mapDirectoryAccessHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(DirectoryAccessHandler); ok {
+			ret = fn(parameter, &ClientConnection{ctx: connection}, DirectoryCategory(category), &LogicalDevice{ctx: logicalDevice})
+		}
+		return true
+	})
+	return C._Bool(ret)
+}
+
+func (x *IedServer) SetDirectoryAccessHandler(handler DirectoryAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_setDirectoryAccessHandler(x.ctx, C.IedServer_DirectoryAccessHandler(C.fDirectoryAccessHandlerGo), parameter)
+}
+
+type ListObjectsAccessHandler func(parameter unsafe.Pointer, connection *ClientConnection, acsiClass ACSIClass, ld *LogicalDevice, ln *LogicalNode, objectName string, subObjectName string, fc FunctionalConstraint) bool
+
+var mapListObjectsAccessHandlers = sync.Map{}
+
+//export fListObjectsAccessHandlerGo
+func fListObjectsAccessHandlerGo(parameter unsafe.Pointer, connection C.ClientConnection, acsiClass C.ACSIClass, ld *C.LogicalDevice, ln *C.LogicalNode, objectName *C.char, subObjectName *C.char, fc C.FunctionalConstraint) C._Bool {
+	ret := false
+	mapListObjectsAccessHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ListObjectsAccessHandler); ok {
+			ret = fn(parameter, &ClientConnection{ctx: connection}, ACSIClass(acsiClass), &LogicalDevice{ctx: ld}, &LogicalNode{ctx: ln}, C.GoString(objectName), C.GoString(subObjectName), FunctionalConstraint(fc))
+		}
+		return true
+	})
+	return C._Bool(ret)
+}
+
+func (x *IedServer) SetListObjectsAccessHandler(handler ListObjectsAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_setListObjectsAccessHandler(x.ctx, C.IedServer_ListObjectsAccessHandler(C.fListObjectsAccessHandlerGo), parameter)
+}
+
+type ControlBlockAccessType int32
+
+const (
+	IEC61850_CB_ACCESS_TYPE_READ  ControlBlockAccessType = C.IEC61850_CB_ACCESS_TYPE_READ
+	IEC61850_CB_ACCESS_TYPE_WRITE ControlBlockAccessType = C.IEC61850_CB_ACCESS_TYPE_WRITE
+)
+
+type ControlBlockAccessHandler func(parameter unsafe.Pointer, connection *ClientConnection, acsiClass ACSIClass, ld *LogicalDevice, ln *LogicalNode, objectName string, subObjectName string, accessType ControlBlockAccessType) bool
+
+var mapControlBlockAccessHandlers = sync.Map{}
+
+//export fControlBlockAccessHandlerGo
+func fControlBlockAccessHandlerGo(parameter unsafe.Pointer, connection C.ClientConnection, acsiClass C.ACSIClass, ld *C.LogicalDevice, ln *C.LogicalNode, objectName *C.char, subObjectName *C.char, accessType C.IedServer_ControlBlockAccessType) C._Bool {
+	ret := false
+	mapControlBlockAccessHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(ControlBlockAccessHandler); ok {
+			ret = fn(parameter, &ClientConnection{ctx: connection}, ACSIClass(acsiClass), &LogicalDevice{ctx: ld}, &LogicalNode{ctx: ln}, C.GoString(objectName), C.GoString(subObjectName), ControlBlockAccessType(accessType))
+		}
+		return true
+	})
+	return C._Bool(ret)
+}
+
+func (x *IedServer) SetControlBlockAccessHandler(handler ControlBlockAccessHandler, parameter unsafe.Pointer) {
+	C.IedServer_setControlBlockAccessHandler(x.ctx, C.IedServer_ControlBlockAccessHandler(C.fControlBlockAccessHandlerGo), parameter)
+}
+
+func (x *IedServer) IgnoreReadAccess(ignore bool) {
+	C.IedServer_ignoreReadAccess(x.ctx, C._Bool(ignore))
 }
