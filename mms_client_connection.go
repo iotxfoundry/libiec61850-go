@@ -9,6 +9,14 @@ extern void fMmsConnectionStateChangedHandlerGo(MmsConnection connection, void* 
 extern void fMmsInformationReportHandlerGo(void* parameter, char* domainName, char* variableListName, MmsValue* value, bool isVariableListName);
 extern void fMmsConnectionLostHandlerGo(MmsConnection connection, void* parameter);
 extern void fConcludeAbortHandlerGo(void* parameter, MmsError mmsError, bool success);
+extern void fMmsConnectionGenericServiceHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, bool success);
+extern void fMmsConnectionGetNameListHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, LinkedList nameList, bool moreFollows);
+extern void fReadVariableHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, MmsValue* value);
+extern void fWriteVariableHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, MmsDataAccessError accessError);
+extern void fWriteMultipleVariablesHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, LinkedList accessResults);
+extern void fGetVariableAccessAttributesHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, MmsVariableSpecification* spec);
+extern void fReadNVLDirectoryHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, LinkedList specs, bool deletable);
+extern void fIdentifyHandlerGo(uint32_t invokeId, void* parameter, MmsError mmsError, char* vendorName, char* modelName, char* revision);
 */
 import "C"
 import (
@@ -49,23 +57,18 @@ func (x *MmsConnectionParameters) fromC(in *C.MmsConnectionParameters) {
 }
 
 type MmsServerIdentity struct {
-	VendorName string
-	ModelName  string
-	Revision   string
+	ctx *C.MmsServerIdentity
 }
 
-func (x *MmsServerIdentity) toC() *C.MmsServerIdentity {
-	return &C.MmsServerIdentity{
-		vendorName: C.CString(x.VendorName),
-		modelName:  C.CString(x.ModelName),
-		revision:   C.CString(x.Revision),
-	}
+func (x *MmsServerIdentity) VendorName() string {
+	return C.GoString(x.ctx.vendorName)
 }
 
-func (x *MmsServerIdentity) fromC(in *C.MmsServerIdentity) {
-	x.VendorName = C.GoString(in.vendorName)
-	x.ModelName = C.GoString(in.modelName)
-	x.Revision = C.GoString(in.revision)
+func (x *MmsServerIdentity) ModelName() string {
+	return C.GoString(x.ctx.modelName)
+}
+func (x *MmsServerIdentity) Revision() string {
+	return C.GoString(x.ctx.revision)
 }
 
 type MmsConnectionState int32
@@ -272,4 +275,702 @@ func (x *MmsConnection) ConcludeAsync(handler ConcludeAbortHandler, parameter un
 	return err.Error()
 }
 
-type MmsConnectionGenericServiceHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError MmsError, success bool)
+type MmsConnectionGenericServiceHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, success bool)
+
+var mapMmsConnectionGenericServiceHandlers = sync.Map{}
+
+//export fMmsConnectionGenericServiceHandlerGo
+func fMmsConnectionGenericServiceHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, success C.bool) {
+	mapMmsConnectionGenericServiceHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(MmsConnectionGenericServiceHandler); ok {
+			fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), bool(success))
+		}
+		return true
+	})
+}
+
+type MmsConnectionGetNameListHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, nameList *LinkedList, moreFollows bool)
+
+var mapMmsConnectionGetNameListHandlers = sync.Map{}
+
+//export fMmsConnectionGetNameListHandlerGo
+func fMmsConnectionGetNameListHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, nameList C.LinkedList, moreFollows C.bool) {
+	mapMmsConnectionGetNameListHandlers.Range(func(key, value any) bool {
+		if fn, ok := value.(MmsConnectionGetNameListHandler); ok {
+			fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), &LinkedList{ctx: nameList}, bool(moreFollows))
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) GetVMDVariableNames() (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	nameList := C.MmsConnection_getVMDVariableNames(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)))
+	return &LinkedList{ctx: nameList}, err.Error()
+}
+
+func (x *MmsConnection) GetVMDVariableNamesAsync(continueAfter string, handler MmsConnectionGetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getVMDVariableNamesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, (C.MmsConnection_GetNameListHandler)(C.fMmsConnectionGetNameListHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) GetDomainNames() (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	nameList := C.MmsConnection_getDomainNames(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)))
+	return &LinkedList{ctx: nameList}, err.Error()
+}
+
+func (x *MmsConnection) GetDomainNamesAsync(continueAfter string, result *LinkedList, handler MmsConnectionGetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getDomainNamesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, result.ctx, (C.MmsConnection_GetNameListHandler)(C.fMmsConnectionGetNameListHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) GetDomainVariableNames(domainId string) (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	nameList := C.MmsConnection_getDomainVariableNames(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: nameList}, err.Error()
+}
+
+func (x *MmsConnection) GetDomainVariableNamesAsync(domainId string, continueAfter string, result *LinkedList, handler MmsConnectionGetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getDomainVariableNamesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, result.ctx, (C.MmsConnection_GetNameListHandler)(C.fMmsConnectionGetNameListHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) GetDomainVariableListNames(domainId string) (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	nameList := C.MmsConnection_getDomainVariableListNames(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: nameList}, err.Error()
+}
+
+func (x *MmsConnection) GetDomainVariableListNamesAsync(domainId string, continueAfter string, result *LinkedList, handler MmsConnectionGetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getDomainVariableListNamesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, result.ctx, (C.MmsConnection_GetNameListHandler)(C.fMmsConnectionGetNameListHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) GetDomainJournals(domainId string) (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	nameList := C.MmsConnection_getDomainJournals(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr)
+	return &LinkedList{ctx: nameList}, err.Error()
+}
+
+func (x *MmsConnection) GetDomainJournalsAsync(domainId string, continueAfter string, handler MmsConnectionGetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getDomainJournalsAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, (C.MmsConnection_GetNameListHandler)(C.fMmsConnectionGetNameListHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) GetVariableListNamesAssociationSpecific() (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	nameList := C.MmsConnection_getVariableListNamesAssociationSpecific(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)))
+	return &LinkedList{ctx: nameList}, err.Error()
+}
+
+func (x *MmsConnection) GetVariableListNamesAssociationSpecificAsync(continueAfter string, handler MmsConnectionGetNameListHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(continueAfter)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getVariableListNamesAssociationSpecificAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, (C.MmsConnection_GetNameListHandler)(C.fMmsConnectionGetNameListHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadVariable(domainId string, itemId string) (*MmsValue, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	value := C.MmsConnection_readVariable(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2)
+	return &MmsValue{ctx: value}, err.Error()
+}
+
+type ReadVariableHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, value *MmsValue)
+
+var mapReadVariableHandlers = sync.Map{}
+
+//export fReadVariableHandlerGo
+func fReadVariableHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, value *C.MmsValue) {
+	mapReadVariableHandlers.Range(func(k, v any) bool {
+		if uint32(invokeId) == k.(uint32) {
+			fn, ok := v.(ReadVariableHandler)
+			if ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), &MmsValue{ctx: value})
+			}
+			return false
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) ReadVariableAsync(domainId string, itemId string, handler ReadVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readVariableAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, (C.MmsConnection_ReadVariableHandler)(C.fReadVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadVariableComponent(domainId string, itemId string, componentId string) (*MmsValue, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	value := C.MmsConnection_readVariableComponent(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, cstr3)
+	return &MmsValue{ctx: value}, err.Error()
+}
+
+func (x *MmsConnection) ReadVariableComponentAsync(domainId string, itemId string, componentId string, handler ReadVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readVariableComponentAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, cstr3, (C.MmsConnection_ReadVariableHandler)(C.fReadVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadArrayElements(domainId string, itemId string, startIndex uint32, numberOfElements uint32) (*MmsValue, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	value := C.MmsConnection_readArrayElements(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.uint32_t(startIndex), C.uint32_t(numberOfElements))
+	return &MmsValue{ctx: value}, err.Error()
+}
+
+func (x *MmsConnection) ReadArrayElementsAsync(domainId string, itemId string, startIndex uint32, numberOfElements uint32, handler ReadVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readArrayElementsAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.uint32_t(startIndex), C.uint32_t(numberOfElements), (C.MmsConnection_ReadVariableHandler)(C.fReadVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadSingleArrayElementWithComponent(domainId string, itemId string, index uint32, componentId string) (*MmsValue, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	value := C.MmsConnection_readSingleArrayElementWithComponent(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.uint32_t(index), cstr3)
+	return &MmsValue{ctx: value}, err.Error()
+}
+
+func (x *MmsConnection) ReadSingleArrayElementWithComponentAsync(domainId string, itemId string, index uint32, componentId string, handler ReadVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readSingleArrayElementWithComponentAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.uint32_t(index), cstr3, (C.MmsConnection_ReadVariableHandler)(C.fReadVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadMultipleVariables(domainId string, items []string) (*MmsValue, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	ll := LinkedListCreate()
+	for _, item := range items {
+		ll.Add((unsafe.Pointer)(C.CString(item)))
+	}
+	value := C.MmsConnection_readMultipleVariables(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, ll.ctx)
+	return &MmsValue{ctx: value}, err.Error()
+}
+
+func (x *MmsConnection) ReadMultipleVariablesAsync(domainId string, items []string, handler ReadVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	ll := LinkedListCreate()
+	for _, item := range items {
+		ll.Add((unsafe.Pointer)(C.CString(item)))
+	}
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readMultipleVariablesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, ll.ctx, (C.MmsConnection_ReadVariableHandler)(C.fReadVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) WriteVariable(domainId string, itemId string, value *MmsValue) error {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_writeVariable(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, value.ctx)
+	return err.Error()
+}
+
+type WriteVariableHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, accessError MmsDataAccessError)
+
+var mapWriteVariableHandlers = sync.Map{}
+
+//export fWriteVariableHandlerGo
+func fWriteVariableHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, accessError C.MmsDataAccessError) {
+	mapWriteVariableHandlers.Range(func(k, v any) bool {
+		if fn, ok := v.(WriteVariableHandler); ok {
+			fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), MmsDataAccessError(accessError))
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) WriteVariableAsync(domainId string, itemId string, value *MmsValue, handler WriteVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_writeVariableAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, value.ctx, (C.MmsConnection_WriteVariableHandler)(C.fWriteVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) WriteVariableComponent(domainId string, itemId string, componentId string, value *MmsValue) (MmsDataAccessError, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	code := C.MmsConnection_writeVariableComponent(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, cstr3, value.ctx)
+	return MmsDataAccessError(code), err.Error()
+}
+
+func (x *MmsConnection) WriteSingleArrayElementWithComponent(domainId string, itemId string, arrayIndex uint32, componentId string, value *MmsValue) (MmsDataAccessError, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	code := C.MmsConnection_writeSingleArrayElementWithComponent(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.uint32_t(arrayIndex), cstr3, value.ctx)
+	return MmsDataAccessError(code), err.Error()
+}
+
+func (x *MmsConnection) WriteSingleArrayElementWithComponentAsync(domainId string, itemId string, arrayIndex uint32, componentId string, value *MmsValue, handler WriteVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_writeSingleArrayElementWithComponentAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.uint32_t(arrayIndex), cstr3, value.ctx, (C.MmsConnection_WriteVariableHandler)(C.fWriteVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) WriteVariableComponentAsync(domainId string, itemId string, componentId string, value *MmsValue, handler WriteVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentId)
+	defer C.free(unsafe.Pointer(cstr3))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_writeVariableComponentAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, cstr3, value.ctx, (C.MmsConnection_WriteVariableHandler)(C.fWriteVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) WriteArrayElements(domainId string, itemId string, index int, numberOfElements int, value *MmsValue) (MmsDataAccessError, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	code := C.MmsConnection_writeArrayElements(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.int(index), C.int(numberOfElements), value.ctx)
+	return MmsDataAccessError(code), err.Error()
+}
+
+func (x *MmsConnection) WriteArrayElementsAsync(domainId string, itemId string, index int, numberOfElements int, value *MmsValue, handler WriteVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_writeArrayElementsAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.int(index), C.int(numberOfElements), value.ctx, (C.MmsConnection_WriteVariableHandler)(C.fWriteVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+type WriteMultipleVariablesHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, accessResults *LinkedList)
+
+var mapWriteMultipleVariablesHandlers = sync.Map{}
+
+//export fWriteMultipleVariablesHandlerGo
+func fWriteMultipleVariablesHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, accessResults C.LinkedList) {
+	mapWriteMultipleVariablesHandlers.Range(func(k, v any) bool {
+		if k == invokeId {
+			if fn, ok := v.(WriteMultipleVariablesHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), &LinkedList{ctx: accessResults})
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) WriteMultipleVariables(domainId string, items *LinkedList, values *LinkedList, accessResults *LinkedList) error {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	C.MmsConnection_writeMultipleVariables(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, items.ctx, values.ctx, (*C.LinkedList)(unsafe.Pointer(accessResults.ctx)))
+	return err.Error()
+}
+
+func (x *MmsConnection) WriteMultipleVariablesAsync(domainId string, items *LinkedList, values *LinkedList, handler WriteMultipleVariablesHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_writeMultipleVariablesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, items.ctx, values.ctx, (C.MmsConnection_WriteMultipleVariablesHandler)(C.fWriteMultipleVariablesHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) WriteNamedVariableList(isAssociationSpecific bool, domainId string, itemId string, values *LinkedList, accessResults *LinkedList) (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	var out C.LinkedList
+	C.MmsConnection_writeNamedVariableList(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), C.bool(isAssociationSpecific), cstr, cstr2, values.ctx, &out)
+	return &LinkedList{ctx: out}, err.Error()
+}
+
+func (x *MmsConnection) WriteNamedVariableListAsync(isAssociationSpecific bool, domainId string, itemId string, values *LinkedList, handler WriteMultipleVariablesHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_writeNamedVariableListAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), C.bool(isAssociationSpecific), cstr, cstr2, values.ctx, (C.MmsConnection_WriteMultipleVariablesHandler)(C.fWriteMultipleVariablesHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) GetVariableAccessAttributes(domainId string, itemId string) (*MmsVariableSpecification, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	out := C.MmsConnection_getVariableAccessAttributes(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2)
+	return &MmsVariableSpecification{ctx: out}, err.Error()
+}
+
+type GetVariableAccessAttributesHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, spec *MmsVariableSpecification)
+
+var mapGetVariableAccessAttributesHandlers = sync.Map{}
+
+//export fGetVariableAccessAttributesHandlerGo
+func fGetVariableAccessAttributesHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, spec *C.MmsVariableSpecification) {
+	mapGetVariableAccessAttributesHandlers.Range(func(k, v any) bool {
+		if k == invokeId {
+			if fn, ok := v.(GetVariableAccessAttributesHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), &MmsVariableSpecification{ctx: spec})
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) GetVariableAccessAttributesAsync(domainId string, itemId string, handler GetVariableAccessAttributesHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_getVariableAccessAttributesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, (C.MmsConnection_GetVariableAccessAttributesHandler)(C.fGetVariableAccessAttributesHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadNamedVariableListValues(domainId string, listName string, specWithResult bool) (*MmsValue, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	out := C.MmsConnection_readNamedVariableListValues(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.bool(specWithResult))
+	return &MmsValue{ctx: out}, err.Error()
+}
+
+func (x *MmsConnection) ReadNamedVariableListValuesAsync(domainId string, listName string, specWithResult bool, handler ReadVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readNamedVariableListValuesAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, C.bool(specWithResult), (C.MmsConnection_ReadVariableHandler)(C.fReadVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadNamedVariableListValuesAssociationSpecific(listName string, specWithResult bool) (*MmsValue, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	out := C.MmsConnection_readNamedVariableListValuesAssociationSpecific(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, C.bool(specWithResult))
+	return &MmsValue{ctx: out}, err.Error()
+}
+
+func (x *MmsConnection) ReadNamedVariableListValuesAssociationSpecificAsync(listName string, specWithResult bool, handler ReadVariableHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readNamedVariableListValuesAssociationSpecificAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, C.bool(specWithResult), (C.MmsConnection_ReadVariableHandler)(C.fReadVariableHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) DefineNamedVariableList(domainId string, listName string, variableSpecs *LinkedList) error {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	C.MmsConnection_defineNamedVariableList(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, variableSpecs.ctx)
+	return err.Error()
+}
+
+func (x *MmsConnection) DefineNamedVariableListAsync(domainId string, listName string, variableSpecs *LinkedList, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_defineNamedVariableListAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, variableSpecs.ctx, (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) DefineNamedVariableListAssociationSpecific(listName string, variableSpecs *LinkedList) error {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	C.MmsConnection_defineNamedVariableListAssociationSpecific(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, variableSpecs.ctx)
+	return err.Error()
+}
+
+func (x *MmsConnection) DefineNamedVariableListAssociationSpecificAsync(listName string, variableSpecs *LinkedList, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_defineNamedVariableListAssociationSpecificAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, variableSpecs.ctx, (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadNamedVariableListDirectory(domainId string, listName string, deletable *bool) (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	out := C.MmsConnection_readNamedVariableListDirectory(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, (*C.bool)(unsafe.Pointer(deletable)))
+	return &LinkedList{ctx: out}, err.Error()
+}
+
+type ReadNVLDirectoryHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, specs *LinkedList, deletable bool)
+
+var mapReadNVLDirectoryHandlers = sync.Map{}
+
+//export fReadNVLDirectoryHandlerGo
+func fReadNVLDirectoryHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, specs C.LinkedList, deletable C.bool) {
+	mapReadNVLDirectoryHandlers.Range(func(k, v any) bool {
+		if k == uint32(invokeId) {
+			if fn, ok := v.(ReadNVLDirectoryHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), &LinkedList{ctx: specs}, bool(deletable))
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) ReadNamedVariableListDirectoryAsync(domainId string, listName string, handler ReadNVLDirectoryHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readNamedVariableListDirectoryAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, (C.MmsConnection_ReadNVLDirectoryHandler)(C.fReadNVLDirectoryHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) ReadNamedVariableListDirectoryAssociationSpecific(listName string, deletable *bool) (*LinkedList, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	out := C.MmsConnection_readNamedVariableListDirectoryAssociationSpecific(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, (*C.bool)(unsafe.Pointer(deletable)))
+	return &LinkedList{ctx: out}, err.Error()
+}
+
+func (x *MmsConnection) ReadNamedVariableListDirectoryAssociationSpecificAsync(listName string, handler ReadNVLDirectoryHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_readNamedVariableListDirectoryAssociationSpecificAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, (C.MmsConnection_ReadNVLDirectoryHandler)(C.fReadNVLDirectoryHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) DeleteNamedVariableList(domainId string, listName string) (bool, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	success := C.MmsConnection_deleteNamedVariableList(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2)
+	return bool(success), err.Error()
+}
+
+func (x *MmsConnection) DeleteNamedVariableListAsync(domainId string, listName string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr2))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_deleteNamedVariableListAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, cstr2, (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsConnection) DeleteAssociationSpecificNamedVariableList(listName string) (bool, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	success := C.MmsConnection_deleteAssociationSpecificNamedVariableList(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)), cstr)
+	return bool(success), err.Error()
+}
+
+func (x *MmsConnection) DeleteAssociationSpecificNamedVariableListAsync(listName string, handler GenericServiceHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	cstr := C.CString(listName)
+	defer C.free(unsafe.Pointer(cstr))
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_deleteAssociationSpecificNamedVariableListAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), cstr, (C.MmsConnection_GenericServiceHandler)(C.fMmsConnectionGenericServiceHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func VariableAccessSpecificationCreate(domainId string, itemId string) *MmsVariableAccessSpecification {
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	return &MmsVariableAccessSpecification{
+		ctx: C.MmsVariableAccessSpecification_create(cstr, cstr2),
+	}
+}
+
+func VariableAccessSpecificationCreateAlternateAccess(domainId string, itemId string, index int32, componentName string) *MmsVariableAccessSpecification {
+	cstr := C.CString(domainId)
+	defer C.free(unsafe.Pointer(cstr))
+	cstr2 := C.CString(itemId)
+	defer C.free(unsafe.Pointer(cstr2))
+	cstr3 := C.CString(componentName)
+	defer C.free(unsafe.Pointer(cstr3))
+	return &MmsVariableAccessSpecification{
+		ctx: C.MmsVariableAccessSpecification_createAlternateAccess(cstr, cstr2, C.int32_t(index), cstr3),
+	}
+}
+
+func (x *MmsVariableAccessSpecification) Destroy() {
+	C.MmsVariableAccessSpecification_destroy(x.ctx)
+}
+
+func (x *MmsConnection) SetLocalDetail(localDetail int32) {
+	C.MmsConnection_setLocalDetail(x.ctx, C.int32_t(localDetail))
+}
+
+func (x *MmsConnection) GetLocalDetail() int32 {
+	return int32(C.MmsConnection_getLocalDetail(x.ctx))
+}
+
+func (x *MmsConnection) Identify() *MmsServerIdentity {
+	err := MMS_ERROR_NONE
+	cout := C.MmsConnection_identify(x.ctx, (*C.MmsError)(unsafe.Pointer(&err)))
+	return &MmsServerIdentity{
+		ctx: cout,
+	}
+}
+
+type IdentifyHandler func(invokeId uint32, parameter unsafe.Pointer, mmsError error, vendorName string, modelName string, revision string)
+
+var mapIdentifyHandlers = sync.Map{}
+
+//export fIdentifyHandlerGo
+func fIdentifyHandlerGo(invokeId C.uint32_t, parameter unsafe.Pointer, mmsError C.MmsError, vendorName *C.char, modelName *C.char, revision *C.char) {
+	mapIdentifyHandlers.Range(func(k, v any) bool {
+		if k.(uint32) == uint32(invokeId) {
+			if fn, ok := v.(IdentifyHandler); ok {
+				fn(uint32(invokeId), parameter, MmsError(mmsError).Error(), C.GoString(vendorName), C.GoString(modelName), C.GoString(revision))
+			}
+		}
+		return true
+	})
+}
+
+func (x *MmsConnection) IdentifyAsync(handler IdentifyHandler, parameter unsafe.Pointer) (uint32, error) {
+	err := MMS_ERROR_NONE
+	usedInvokeId := C.uint32_t(0)
+	C.MmsConnection_identifyAsync(x.ctx, (*C.uint32_t)(unsafe.Pointer(&usedInvokeId)), (*C.MmsError)(unsafe.Pointer(&err)), (C.MmsConnection_IdentifyHandler)(C.fIdentifyHandlerGo), parameter)
+	return uint32(usedInvokeId), err.Error()
+}
+
+func (x *MmsServerIdentity) Destroy() {
+	C.MmsServerIdentity_destroy(x.ctx)
+}
