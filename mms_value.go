@@ -310,11 +310,11 @@ func (x *MmsValue) SetUtcTimeMs(timeval time.Time) *MmsValue {
 	return &MmsValue{ctx: x.ctx}
 }
 
-func (x *MmsValue) SetUtcTimeByBuffer(timeval [8]byte) {
+func (x *MmsValue) SetUtcTimeByBuffer(timeval []byte) {
 	if len(timeval) != 8 {
 		panic("timeval must be 8 bytes long")
 	}
-	ctimeval := C.CBytes(timeval[:])
+	ctimeval := C.CBytes(timeval)
 	defer C.free(ctimeval)
 	C.MmsValue_setUtcTimeByBuffer(x.ctx, (*C.uint8_t)(ctimeval))
 }

@@ -5,9 +5,13 @@ package libiec61850go
 #include "libiec61850_common_api.h"
 #include "iso_connection_parameters.h"
 
+extern bool fAcseAuthenticatorGo(void* parameter, AcseAuthenticationParameter authParameter, void** securityToken, IsoApplicationReference* appReference);
 */
 import "C"
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
 
 type AcseAuthenticationMechanism int32
 
@@ -82,7 +86,21 @@ func (x *ItuObjectIdentifier) GetArc() []uint16 {
 	return out
 }
 
-type AcseAuthenticator func(parameter unsafe.Pointer, authParameter AcseAuthenticationParameter, securityToken unsafe.Pointer, appReference *IsoApplicationReference) bool
+type AcseAuthenticator func(parameter unsafe.Pointer, authParameter AcseAuthenticationParameter, securityToken *unsafe.Pointer, appReference *IsoApplicationReference) bool
+
+var mapAcseAuthenticators = sync.Map{}
+
+//export fAcseAuthenticatorGo
+func fAcseAuthenticatorGo(parameter unsafe.Pointer, authParameter C.AcseAuthenticationParameter, securityToken *unsafe.Pointer, appReference *C.IsoApplicationReference) C._Bool {
+	ret := false
+	mapAcseAuthenticators.Range(func(k, v any) bool {
+		if fn, ok := v.(AcseAuthenticator); ok {
+			ret = fn(parameter, AcseAuthenticationParameter{ctx: authParameter}, securityToken, &IsoApplicationReference{ctx: appReference})
+		}
+		return true
+	})
+	return C._Bool(ret)
+}
 
 type TSelector []byte
 type SSelector []byte

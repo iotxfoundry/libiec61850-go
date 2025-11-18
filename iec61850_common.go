@@ -245,7 +245,7 @@ func (x FunctionalConstraint) String() string {
 	return C.GoString(C.FunctionalConstraint_toString(C.FunctionalConstraint(x)))
 }
 
-func NewFunctionalConstraint(s string) FunctionalConstraint {
+func FunctionalConstraintFromString(s string) FunctionalConstraint {
 	cs := C.CString(s)
 	defer C.free(unsafe.Pointer(cs))
 	return FunctionalConstraint(C.FunctionalConstraint_fromString(cs))
