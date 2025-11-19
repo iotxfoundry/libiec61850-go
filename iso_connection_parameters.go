@@ -50,9 +50,7 @@ func (x *AcseAuthenticationParameter) GetAuthMechanism() AcseAuthenticationMecha
 }
 
 func (x *AcseAuthenticationParameter) SetPassword(password string) {
-	cpassword := C.CString(password)
-	defer C.free(unsafe.Pointer(cpassword))
-	C.AcseAuthenticationParameter_setPassword(x.ctx, cpassword)
+	C.AcseAuthenticationParameter_setPassword(x.ctx, StringData(password))
 }
 
 func (x *AcseAuthenticationParameter) GetPassword() string {
@@ -133,15 +131,11 @@ func (x *IsoConnectionParameters) SetTcpParameters(hostname string, tcpPort int)
 }
 
 func (x *IsoConnectionParameters) SetLocalTcpParameters(localIpAddress string, localTcpPort int) {
-	clocalIpAddress := C.CString(localIpAddress)
-	defer C.free(unsafe.Pointer(clocalIpAddress))
-	C.IsoConnectionParameters_setLocalTcpParameters(x.ctx, clocalIpAddress, C.int(localTcpPort))
+	C.IsoConnectionParameters_setLocalTcpParameters(x.ctx, StringData(localIpAddress), C.int(localTcpPort))
 }
 
 func (x *IsoConnectionParameters) SetRemoteApTitle(apTitle string, aeQualifier int) {
-	capTitle := C.CString(apTitle)
-	defer C.free(unsafe.Pointer(capTitle))
-	C.IsoConnectionParameters_setRemoteApTitle(x.ctx, capTitle, C.int(aeQualifier))
+	C.IsoConnectionParameters_setRemoteApTitle(x.ctx, StringData(apTitle), C.int(aeQualifier))
 }
 
 func (x *IsoConnectionParameters) SetRemoteAddresses(pSelector PSelector, sSelector SSelector, tSelector TSelector) {
@@ -167,9 +161,7 @@ func (x *IsoConnectionParameters) SetRemoteAddresses(pSelector PSelector, sSelec
 }
 
 func (x *IsoConnectionParameters) SetLocalApTitle(apTitle string, aeQualifier int) {
-	capTitle := C.CString(apTitle)
-	defer C.free(unsafe.Pointer(capTitle))
-	C.IsoConnectionParameters_setLocalApTitle(x.ctx, capTitle, C.int(aeQualifier))
+	C.IsoConnectionParameters_setLocalApTitle(x.ctx, StringData(apTitle), C.int(aeQualifier))
 }
 
 func (x *IsoConnectionParameters) SetLocalAddresses(pSelector PSelector, sSelector SSelector, tSelector TSelector) {

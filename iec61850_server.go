@@ -91,9 +91,7 @@ func (x *IedServerConfig) GetSyncIntegrityReportTimes() bool {
 }
 
 func (x *IedServerConfig) SetFileServiceBasePath(basepath string) {
-	cs := C.CString(basepath)
-	defer C.free(unsafe.Pointer(cs))
-	C.IedServerConfig_setFileServiceBasePath(x.ctx, cs)
+	C.IedServerConfig_setFileServiceBasePath(x.ctx, StringData(basepath))
 }
 
 func (x *IedServerConfig) GetFileServiceBasePath() string {
@@ -209,37 +207,23 @@ func (x *IedServer) Destroy() {
 }
 
 func (x *IedServer) AddAccessPoint(ipAddr string, tcpPort int, tlsConfiguration *TLSConfiguration) bool {
-	cs := C.CString(ipAddr)
-	defer C.free(unsafe.Pointer(cs))
-	return bool(C.IedServer_addAccessPoint(x.ctx, cs, C.int(tcpPort), tlsConfiguration.ctx))
+	return bool(C.IedServer_addAccessPoint(x.ctx, StringData(ipAddr), C.int(tcpPort), tlsConfiguration.ctx))
 }
 
 func (x *IedServer) SetLocalIpAddress(localIpAddress string) {
-	cs := C.CString(localIpAddress)
-	defer C.free(unsafe.Pointer(cs))
-	C.IedServer_setLocalIpAddress(x.ctx, cs)
+	C.IedServer_setLocalIpAddress(x.ctx, StringData(localIpAddress))
 }
 
 func (x *IedServer) SetServerIdentity(vendor string, model string, revision string) {
-	cs_vendor := C.CString(vendor)
-	defer C.free(unsafe.Pointer(cs_vendor))
-	cs_model := C.CString(model)
-	defer C.free(unsafe.Pointer(cs_model))
-	cs_revision := C.CString(revision)
-	defer C.free(unsafe.Pointer(cs_revision))
-	C.IedServer_setServerIdentity(x.ctx, cs_vendor, cs_model, cs_revision)
+	C.IedServer_setServerIdentity(x.ctx, StringData(vendor), StringData(model), StringData(revision))
 }
 
 func (x *IedServer) SetFilestoreBasepath(basepath string) {
-	cs := C.CString(basepath)
-	defer C.free(unsafe.Pointer(cs))
-	C.IedServer_setFilestoreBasepath(x.ctx, cs)
+	C.IedServer_setFilestoreBasepath(x.ctx, StringData(basepath))
 }
 
 func (x *IedServer) SetLogStorage(logRef string, logStorage *LogStorage) {
-	cs := C.CString(logRef)
-	defer C.free(unsafe.Pointer(cs))
-	C.IedServer_setLogStorage(x.ctx, cs, logStorage.ctx)
+	C.IedServer_setLogStorage(x.ctx, StringData(logRef), logStorage.ctx)
 }
 
 func (x *IedServer) Start(tcpPort int) {
@@ -295,23 +279,15 @@ func (x *IedServer) DisableGoosePublishing() {
 }
 
 func (x *IedServer) SetGooseInterfaceId(interfaceId string) {
-	cs := C.CString(interfaceId)
-	defer C.free(unsafe.Pointer(cs))
-	C.IedServer_setGooseInterfaceId(x.ctx, cs)
+	C.IedServer_setGooseInterfaceId(x.ctx, StringData(interfaceId))
 }
 
 func (x *IedServer) SetGooseInterfaceIdEx(ln *LogicalNode, gcbName string, interfaceId string) {
-	cs_gcbName := C.CString(gcbName)
-	defer C.free(unsafe.Pointer(cs_gcbName))
-	cs_interfaceId := C.CString(interfaceId)
-	defer C.free(unsafe.Pointer(cs_interfaceId))
-	C.IedServer_setGooseInterfaceIdEx(x.ctx, ln.ctx, cs_gcbName, cs_interfaceId)
+	C.IedServer_setGooseInterfaceIdEx(x.ctx, ln.ctx, StringData(gcbName), StringData(interfaceId))
 }
 
 func (x *IedServer) UseGooseVlanTag(ln *LogicalNode, gcbName string, useVlanTag bool) {
-	cs_gcbName := C.CString(gcbName)
-	defer C.free(unsafe.Pointer(cs_gcbName))
-	C.IedServer_useGooseVlanTag(x.ctx, ln.ctx, cs_gcbName, C.bool(useVlanTag))
+	C.IedServer_useGooseVlanTag(x.ctx, ln.ctx, StringData(gcbName), C.bool(useVlanTag))
 }
 
 func (x *IedServer) SetTimeQuality(leapSecondKnown bool, clockFailure bool, clockNotSynchronized bool, subsecondPrecision int) {
@@ -353,15 +329,17 @@ var mapIedConnectionIndicationHandlers = sync.Map{}
 //export fIedConnectionIndicationHandlerGo
 func fIedConnectionIndicationHandlerGo(self C.IedServer, connection C.ClientConnection, connected C._Bool, parameter unsafe.Pointer) {
 	mapIedConnectionIndicationHandlers.Range(func(k, v any) bool {
-		if fn, ok := v.(IedConnectionIndicationHandler); ok {
-			fn(&IedServer{ctx: self}, &ClientConnection{ctx: connection}, bool(connected), parameter)
+		if k.(C.IedServer) == self {
+			if fn, ok := v.(IedConnectionIndicationHandler); ok {
+				fn(&IedServer{ctx: self}, &ClientConnection{ctx: connection}, bool(connected), parameter)
+			}
 		}
 		return true
 	})
 }
 
 func (x *IedServer) SetConnectionIndicationHandler(handler IedConnectionIndicationHandler, parameter unsafe.Pointer) {
-	mapIedConnectionIndicationHandlers.Store(handler, handler)
+	mapIedConnectionIndicationHandlers.Store(x.ctx, handler)
 	C.IedServer_setConnectionIndicationHandler(x.ctx, C.IedConnectionIndicationHandler(C.fIedConnectionIndicationHandlerGo), parameter)
 }
 
@@ -450,9 +428,7 @@ func (x *IedServer) UpdateBooleanAttributeValue(da *DataAttribute, value bool) {
 }
 
 func (x *IedServer) UpdateVisibleStringAttributeValue(da *DataAttribute, value string) {
-	cstr := C.CString(value)
-	defer C.free(unsafe.Pointer(cstr))
-	C.IedServer_updateVisibleStringAttributeValue(x.ctx, da.ctx, cstr)
+	C.IedServer_updateVisibleStringAttributeValue(x.ctx, da.ctx, StringData(value))
 }
 
 func (x *IedServer) UpdateUTCTimeAttributeValue(da *DataAttribute, value uint64) {

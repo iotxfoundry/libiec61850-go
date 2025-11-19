@@ -9,15 +9,11 @@ import "C"
 import "unsafe"
 
 func IedModelCreate(name string) *IedModel {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &IedModel{ctx: C.IedModel_create(cname)}
+	return &IedModel{ctx: C.IedModel_create((*C.char)(unsafe.Pointer(unsafe.StringData(name + "\x00"))))}
 }
 
 func (x *IedModel) SetIedNameForDynamicModel(name string) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	C.IedModel_setIedNameForDynamicModel(x.ctx, cname)
+	C.IedModel_setIedNameForDynamicModel(x.ctx, StringData(name))
 }
 
 func (x *IedModel) Destroy() {
@@ -25,36 +21,23 @@ func (x *IedModel) Destroy() {
 }
 
 func (x *IedModel) LogicalDeviceCreate(name string) *LogicalDevice {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &LogicalDevice{ctx: C.LogicalDevice_create(cname, x.ctx)}
+	return &LogicalDevice{ctx: C.LogicalDevice_create(StringData(name), x.ctx)}
 }
 
 func LogicalDeviceCreateEx(inst string, parent *IedModel, ldName string) *LogicalDevice {
-	cinst := C.CString(inst)
-	defer C.free(unsafe.Pointer(cinst))
-	cldName := C.CString(ldName)
-	defer C.free(unsafe.Pointer(cldName))
-	return &LogicalDevice{ctx: C.LogicalDevice_createEx(cinst, parent.ctx, cldName)}
+	return &LogicalDevice{ctx: C.LogicalDevice_createEx(StringData(inst), parent.ctx, StringData(ldName))}
 }
 
 func LogicalNodeCreate(name string, parent *LogicalDevice) *LogicalNode {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &LogicalNode{ctx: C.LogicalNode_create(cname, parent.ctx)}
+	return &LogicalNode{ctx: C.LogicalNode_create(StringData(name), parent.ctx)}
 }
 
 func DataObjectCreate(name string, parent *ModelNode, arrayElements int) *DataObject {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &DataObject{ctx: C.DataObject_create(cname, parent.ctx, C.int(arrayElements))}
+	return &DataObject{ctx: C.DataObject_create(StringData(name), parent.ctx, C.int(arrayElements))}
 }
 
-func DataAttributeCreate(name string, parent *ModelNode, type_ DataAttributeType, fc FunctionalConstraint,
-	triggerOptions uint8, arrayElements int, sAddr uint32) *DataAttribute {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &DataAttribute{ctx: C.DataAttribute_create(cname, parent.ctx, C.DataAttributeType(type_),
+func DataAttributeCreate(name string, parent *ModelNode, type_ DataAttributeType, fc FunctionalConstraint, triggerOptions uint8, arrayElements int, sAddr uint32) *DataAttribute {
+	return &DataAttribute{ctx: C.DataAttribute_create(StringData(name), parent.ctx, C.DataAttributeType(type_),
 		C.FunctionalConstraint(fc), C.uint8_t(triggerOptions), C.int(arrayElements), C.uint32_t(sAddr))}
 }
 
@@ -76,18 +59,12 @@ func (x *DataAttribute) SetValue(value *MmsValue) {
 
 func ReportControlBlockCreate(name string, parent *LogicalNode, rptId string, isBuffered bool, dataSetName string,
 	confRef uint32, trgOps uint8, options uint8, bufTm uint32, intgPd uint32) *ReportControlBlock {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	crptId := C.CString(rptId)
-	defer C.free(unsafe.Pointer(crptId))
-	cdataSetName := C.CString(dataSetName)
-	defer C.free(unsafe.Pointer(cdataSetName))
-	return &ReportControlBlock{ctx: C.ReportControlBlock_create(cname, parent.ctx, crptId, C.bool(isBuffered),
-		cdataSetName, C.uint32_t(confRef), C.uint8_t(trgOps), C.uint8_t(options), C.uint32_t(bufTm), C.uint32_t(intgPd))}
+	return &ReportControlBlock{ctx: C.ReportControlBlock_create(StringData(name), parent.ctx, StringData(rptId), C.bool(isBuffered),
+		StringData(dataSetName), C.uint32_t(confRef), C.uint8_t(trgOps), C.uint8_t(options), C.uint32_t(bufTm), C.uint32_t(intgPd))}
 }
 
 func (x *ReportControlBlock) SetPreconfiguredClient(clientType uint8, clientAddress []uint8) {
-	C.ReportControlBlock_setPreconfiguredClient(x.ctx, C.uint8_t(clientType), (*C.uint8_t)(unsafe.Pointer(&clientAddress[0])))
+	C.ReportControlBlock_setPreconfiguredClient(x.ctx, C.uint8_t(clientType), SliceData(clientAddress))
 }
 
 func (x *ReportControlBlock) GetName() string {
@@ -168,13 +145,7 @@ func (x *ReportControlBlock) GetOwner() *MmsValue {
 
 func LogControlBlockCreate(name string, parent *LogicalNode, dataSetName string, logRef string, trgOps uint8,
 	intgPd uint32, logEna bool, reasonCode bool) *LogControlBlock {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	cdataSetName := C.CString(dataSetName)
-	defer C.free(unsafe.Pointer(cdataSetName))
-	clogRef := C.CString(logRef)
-	defer C.free(unsafe.Pointer(clogRef))
-	return &LogControlBlock{ctx: C.LogControlBlock_create(cname, parent.ctx, cdataSetName, clogRef, C.uint8_t(trgOps),
+	return &LogControlBlock{ctx: C.LogControlBlock_create(StringData(name), parent.ctx, StringData(dataSetName), StringData(logRef), C.uint8_t(trgOps),
 		C.uint32_t(intgPd), C.bool(logEna), C.bool(reasonCode))}
 }
 
@@ -187,9 +158,7 @@ func (x *LogControlBlock) GetParent() *LogicalNode {
 }
 
 func LogCreate(name string, parent *LogicalNode) *Log {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &Log{ctx: C.Log_create(cname, parent.ctx)}
+	return &Log{ctx: C.Log_create(StringData(name), parent.ctx)}
 }
 
 func SettingGroupControlBlockCreate(parent *LogicalNode, actSG uint8, numOfSGs uint8) *SettingGroupControlBlock {
@@ -198,25 +167,13 @@ func SettingGroupControlBlockCreate(parent *LogicalNode, actSG uint8, numOfSGs u
 
 func GSEControlBlockCreate(name string, parent *LogicalNode, appId string, dataSet string, confRev uint32,
 	fixedOffs bool, minTime int, maxTime int) *GSEControlBlock {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	cappId := C.CString(appId)
-	defer C.free(unsafe.Pointer(cappId))
-	cdataSet := C.CString(dataSet)
-	defer C.free(unsafe.Pointer(cdataSet))
-	return &GSEControlBlock{ctx: C.GSEControlBlock_create(cname, parent.ctx, cappId, cdataSet, C.uint32_t(confRev),
+	return &GSEControlBlock{ctx: C.GSEControlBlock_create(StringData(name), parent.ctx, StringData(appId), StringData(dataSet), C.uint32_t(confRev),
 		C.bool(fixedOffs), C.int(minTime), C.int(maxTime))}
 }
 
 func SVControlBlockCreate(name string, parent *LogicalNode, svID string, dataSet string, confRev uint32, smpMod uint8,
 	smpRate uint16, optFlds uint8, isUnicast bool) *SVControlBlock {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	csvID := C.CString(svID)
-	defer C.free(unsafe.Pointer(csvID))
-	cdataSet := C.CString(dataSet)
-	defer C.free(unsafe.Pointer(cdataSet))
-	return &SVControlBlock{ctx: C.SVControlBlock_create(cname, parent.ctx, csvID, cdataSet, C.uint32_t(confRev), C.uint8_t(smpMod),
+	return &SVControlBlock{ctx: C.SVControlBlock_create(StringData(name), parent.ctx, StringData(svID), StringData(dataSet), C.uint32_t(confRev), C.uint8_t(smpMod),
 		C.uint16_t(smpRate), C.uint8_t(optFlds), C.bool(isUnicast))}
 }
 
@@ -233,14 +190,11 @@ func (x *GSEControlBlock) AddPhyComAddress(phyComAddress *PhyComAddress) {
 }
 
 func PhyComAddressCreate(vlanPriority uint8, vlanId uint16, appId uint16, dstAddress []uint8) *PhyComAddress {
-	return &PhyComAddress{ctx: C.PhyComAddress_create(C.uint8_t(vlanPriority), C.uint16_t(vlanId), C.uint16_t(appId),
-		(*C.uint8_t)(unsafe.SliceData(dstAddress)))}
+	return &PhyComAddress{ctx: C.PhyComAddress_create(C.uint8_t(vlanPriority), C.uint16_t(vlanId), C.uint16_t(appId), SliceData(dstAddress))}
 }
 
 func DataSetCreate(name string, parent *LogicalNode) *DataSet {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &DataSet{ctx: C.DataSet_create(cname, parent.ctx)}
+	return &DataSet{ctx: C.DataSet_create(StringData(name), parent.ctx)}
 }
 
 func (x *DataSet) GetName() string {
@@ -260,9 +214,5 @@ func (x *DataSetEntry) GetNext() *DataSetEntry {
 }
 
 func DataSetEntryCreate(dataSet *DataSet, variable string, index int, component string) *DataSetEntry {
-	cvariable := C.CString(variable)
-	defer C.free(unsafe.Pointer(cvariable))
-	ccomponent := C.CString(component)
-	defer C.free(unsafe.Pointer(ccomponent))
-	return &DataSetEntry{ctx: C.DataSetEntry_create(dataSet.ctx, cvariable, C.int(index), ccomponent)}
+	return &DataSetEntry{ctx: C.DataSetEntry_create(dataSet.ctx, StringData(variable), C.int(index), StringData(component))}
 }

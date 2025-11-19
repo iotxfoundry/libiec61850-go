@@ -6,25 +6,20 @@ package libiec61850go
 
 */
 import "C"
-import "unsafe"
 
 func (x *MmsVariableSpecification) Destroy() {
 	C.MmsVariableSpecification_destroy(x.ctx)
 }
 
 func (x *MmsVariableSpecification) GetChildValue(value *MmsValue, childId string) *MmsValue {
-	cchildId := C.CString(childId)
-	defer C.free(unsafe.Pointer(cchildId))
 	return &MmsValue{
-		ctx: C.MmsVariableSpecification_getChildValue(x.ctx, value.ctx, cchildId),
+		ctx: C.MmsVariableSpecification_getChildValue(x.ctx, value.ctx, StringData(childId)),
 	}
 }
 
 func (x *MmsVariableSpecification) GetNamedVariableRecursive(nameId string) *MmsVariableSpecification {
-	cnameId := C.CString(nameId)
-	defer C.free(unsafe.Pointer(cnameId))
 	return &MmsVariableSpecification{
-		ctx: C.MmsVariableSpecification_getNamedVariableRecursive(x.ctx, cnameId),
+		ctx: C.MmsVariableSpecification_getNamedVariableRecursive(x.ctx, StringData(nameId)),
 	}
 }
 
@@ -57,11 +52,9 @@ func (x *MmsVariableSpecification) GetChildSpecificationByIndex(index int) *MmsV
 }
 
 func (x *MmsVariableSpecification) GetChildSpecificationByName(name string) (*MmsVariableSpecification, int) {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
 	var index C.int
 	return &MmsVariableSpecification{
-		ctx: C.MmsVariableSpecification_getChildSpecificationByName(x.ctx, cname, &index),
+		ctx: C.MmsVariableSpecification_getChildSpecificationByName(x.ctx, StringData(name), &index),
 	}, int(index)
 }
 

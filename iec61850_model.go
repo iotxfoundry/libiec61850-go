@@ -9,7 +9,6 @@ extern void fIedModelInitializerGo();
 import "C"
 import (
 	"sync"
-	"unsafe"
 )
 
 type ModelNode struct {
@@ -21,9 +20,7 @@ func (x *ModelNode) GetChildCount() int {
 }
 
 func (x *ModelNode) GetChild(name string) *ModelNode {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &ModelNode{ctx: C.ModelNode_getChild(x.ctx, cname)}
+	return &ModelNode{ctx: C.ModelNode_getChild(x.ctx, StringData(name))}
 }
 
 func (x *ModelNode) GetChildWithIdx(idx int) *ModelNode {
@@ -31,21 +28,15 @@ func (x *ModelNode) GetChildWithIdx(idx int) *ModelNode {
 }
 
 func (x *ModelNode) GetChildWithFc(name string, fc FunctionalConstraint) *ModelNode {
-	cname := C.CString(name)
-	defer C.free(unsafe.Pointer(cname))
-	return &ModelNode{ctx: C.ModelNode_getChildWithFc(x.ctx, cname, C.FunctionalConstraint(fc))}
+	return &ModelNode{ctx: C.ModelNode_getChildWithFc(x.ctx, StringData(name), C.FunctionalConstraint(fc))}
 }
 
 func (x *ModelNode) GetObjectReference(objectReference string) string {
-	cref := C.CString(objectReference)
-	defer C.free(unsafe.Pointer(cref))
-	return C.GoString(C.ModelNode_getObjectReference(x.ctx, cref))
+	return C.GoString(C.ModelNode_getObjectReference(x.ctx, StringData(objectReference)))
 }
 
 func (x *ModelNode) GetObjectReferenceEx(objectReference string, withoutIedName bool) string {
-	cref := C.CString(objectReference)
-	defer C.free(unsafe.Pointer(cref))
-	return C.GoString(C.ModelNode_getObjectReferenceEx(x.ctx, cref, C.bool(withoutIedName)))
+	return C.GoString(C.ModelNode_getObjectReferenceEx(x.ctx, StringData(objectReference), C.bool(withoutIedName)))
 }
 
 func (x *ModelNode) GetType() ModelNodeType {
@@ -189,9 +180,7 @@ func (x *LogicalNode) HasFCData(fc FunctionalConstraint) bool {
 // }
 
 func (x *LogicalNode) GetDataSet(dataSetName string) *DataSet {
-	cname := C.CString(dataSetName)
-	defer C.free(unsafe.Pointer(cname))
-	return &DataSet{ctx: C.LogicalNode_getDataSet(x.ctx, cname)}
+	return &DataSet{ctx: C.LogicalNode_getDataSet(x.ctx, StringData(dataSetName))}
 }
 
 func (x *LogicalNode) ModelType() ModelNodeType {
@@ -223,9 +212,7 @@ func (x *LogicalDevice) GetLogicalNodeCount() int {
 }
 
 func (x *LogicalDevice) GetChildByMmsVariableName(mmsVariableName string) *ModelNode {
-	cmmsVariableName := C.CString(mmsVariableName)
-	defer C.free(unsafe.Pointer(cmmsVariableName))
-	return &ModelNode{ctx: C.LogicalDevice_getChildByMmsVariableName(x.ctx, cmmsVariableName)}
+	return &ModelNode{ctx: C.LogicalDevice_getChildByMmsVariableName(x.ctx, StringData(mmsVariableName))}
 }
 
 func (x *LogicalDevice) GetSettingGroupControlBlock() *SettingGroupControlBlock {
@@ -233,9 +220,7 @@ func (x *LogicalDevice) GetSettingGroupControlBlock() *SettingGroupControlBlock 
 }
 
 func (x *LogicalDevice) GetLogicalNode(lnName string) *LogicalNode {
-	cname := C.CString(lnName)
-	defer C.free(unsafe.Pointer(cname))
-	return &LogicalNode{ctx: C.LogicalDevice_getLogicalNode(x.ctx, cname)}
+	return &LogicalNode{ctx: C.LogicalDevice_getLogicalNode(x.ctx, StringData(lnName))}
 }
 
 func (x *LogicalDevice) ModelType() ModelNodeType {
@@ -271,15 +256,11 @@ func (x *IedModel) SetAttributeValuesToNull() {
 }
 
 func (x *IedModel) GetDevice(ldName string) *LogicalDevice {
-	cname := C.CString(ldName)
-	defer C.free(unsafe.Pointer(cname))
-	return &LogicalDevice{ctx: C.IedModel_getDevice(x.ctx, cname)}
+	return &LogicalDevice{ctx: C.IedModel_getDevice(x.ctx, StringData(ldName))}
 }
 
 func (x *IedModel) LookupDataSet(dataSetReference string) *DataSet {
-	cname := C.CString(dataSetReference)
-	defer C.free(unsafe.Pointer(cname))
-	return &DataSet{ctx: C.IedModel_lookupDataSet(x.ctx, cname)}
+	return &DataSet{ctx: C.IedModel_lookupDataSet(x.ctx, StringData(dataSetReference))}
 }
 
 func (x *IedModel) LookupDataAttributeByMmsValue(mmsValue *MmsValue) *DataAttribute {
@@ -291,27 +272,19 @@ func (x *IedModel) GetLogicalDeviceCount() int {
 }
 
 func (x *IedModel) SetIedName(iedName string) {
-	cname := C.CString(iedName)
-	defer C.free(unsafe.Pointer(cname))
-	C.IedModel_setIedName(x.ctx, cname)
+	C.IedModel_setIedName(x.ctx, StringData(iedName))
 }
 
 func (x *IedModel) GetModelNodeByObjectReference(objectReference string) *ModelNode {
-	cref := C.CString(objectReference)
-	defer C.free(unsafe.Pointer(cref))
-	return &ModelNode{ctx: C.IedModel_getModelNodeByObjectReference(x.ctx, cref)}
+	return &ModelNode{ctx: C.IedModel_getModelNodeByObjectReference(x.ctx, StringData(objectReference))}
 }
 
 func (x *IedModel) GetSVControlBlock(parentLN *LogicalNode, svcbName string) *SVControlBlock {
-	csvcbName := C.CString(svcbName)
-	defer C.free(unsafe.Pointer(csvcbName))
-	return &SVControlBlock{ctx: C.IedModel_getSVControlBlock(x.ctx, parentLN.ctx, csvcbName)}
+	return &SVControlBlock{ctx: C.IedModel_getSVControlBlock(x.ctx, parentLN.ctx, StringData(svcbName))}
 }
 
 func (x *IedModel) GetModelNodeByShortObjectReference(objectReference string) *ModelNode {
-	cobjectReference := C.CString(objectReference)
-	defer C.free(unsafe.Pointer(cobjectReference))
-	return &ModelNode{ctx: C.IedModel_getModelNodeByShortObjectReference(x.ctx, cobjectReference)}
+	return &ModelNode{ctx: C.IedModel_getModelNodeByShortObjectReference(x.ctx, StringData(objectReference))}
 }
 
 func (x *IedModel) GetModelNodeByShortAddress(shortAddress uint32) *ModelNode {
@@ -319,9 +292,7 @@ func (x *IedModel) GetModelNodeByShortAddress(shortAddress uint32) *ModelNode {
 }
 
 func (x *IedModel) GetDeviceByInst(ldInst string) *LogicalDevice {
-	cinst := C.CString(ldInst)
-	defer C.free(unsafe.Pointer(cinst))
-	return &LogicalDevice{ctx: C.IedModel_getDeviceByInst(x.ctx, cinst)}
+	return &LogicalDevice{ctx: C.IedModel_getDeviceByInst(x.ctx, StringData(ldInst))}
 }
 
 func (x *IedModel) GetDeviceByIndex(index int) *LogicalDevice {

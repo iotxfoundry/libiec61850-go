@@ -246,9 +246,7 @@ func (x FunctionalConstraint) String() string {
 }
 
 func FunctionalConstraintFromString(s string) FunctionalConstraint {
-	cs := C.CString(s)
-	defer C.free(unsafe.Pointer(cs))
-	return FunctionalConstraint(C.FunctionalConstraint_fromString(cs))
+	return FunctionalConstraint(C.FunctionalConstraint_fromString(StringData(s)))
 }
 
 type Quality uint16
@@ -315,9 +313,12 @@ func NewDbposFromMmsValue(mmsValue *MmsValue) Dbpos {
 }
 
 func (x Dbpos) ToMmsValue(mmsValue *MmsValue) (out *MmsValue) {
-	out = &MmsValue{ctx: mmsValue.ctx}
-	out.ctx = C.Dbpos_toMmsValue(mmsValue.ctx, C.Dbpos(x))
-	return
+	var ctx *C.MmsValue
+	if mmsValue != nil {
+		ctx = mmsValue.ctx
+	}
+	ctx = C.Dbpos_toMmsValue(ctx, C.Dbpos(x))
+	return &MmsValue{ctx: ctx}
 }
 
 type Timestamp struct {
@@ -329,9 +330,7 @@ func TimestampCreate() *Timestamp {
 }
 
 func NewTimestampFromByteArray(byteArray []byte) *Timestamp {
-	array := C.CBytes(byteArray)
-	defer C.free(unsafe.Pointer(array))
-	return &Timestamp{ctx: C.Timestamp_createFromByteArray((*C.uint8_t)(array))}
+	return &Timestamp{ctx: C.Timestamp_createFromByteArray(SliceData(byteArray))}
 }
 
 func (x *Timestamp) Destroy() {

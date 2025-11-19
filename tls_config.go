@@ -135,23 +135,15 @@ func (x *TLSConfiguration) SetOwnCertificate(certificate []byte) bool {
 }
 
 func (x *TLSConfiguration) SetOwnCertificateFromFile(filename string) bool {
-	cfilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cfilename))
-	return bool(C.TLSConfiguration_setOwnCertificateFromFile(x.ctx, cfilename))
+	return bool(C.TLSConfiguration_setOwnCertificateFromFile(x.ctx, StringData(filename)))
 }
 
 func (x *TLSConfiguration) SetOwnKey(key []byte, keyPassword string) bool {
-	ckeyPassword := C.CString(keyPassword)
-	defer C.free(unsafe.Pointer(ckeyPassword))
-	return bool(C.TLSConfiguration_setOwnKey(x.ctx, (*C.uint8_t)(unsafe.SliceData(key)), C.int(len(key)), ckeyPassword))
+	return bool(C.TLSConfiguration_setOwnKey(x.ctx, (*C.uint8_t)(unsafe.SliceData(key)), C.int(len(key)), StringData(keyPassword)))
 }
 
 func (x *TLSConfiguration) SetOwnKeyFromFile(filename string, keyPassword string) bool {
-	cfilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cfilename))
-	ckeyPassword := C.CString(keyPassword)
-	defer C.free(unsafe.Pointer(ckeyPassword))
-	return bool(C.TLSConfiguration_setOwnKeyFromFile(x.ctx, cfilename, ckeyPassword))
+	return bool(C.TLSConfiguration_setOwnKeyFromFile(x.ctx, StringData(filename), StringData(keyPassword)))
 }
 
 func (x *TLSConfiguration) AddAllowedCertificate(certificate []byte) bool {
@@ -159,19 +151,15 @@ func (x *TLSConfiguration) AddAllowedCertificate(certificate []byte) bool {
 }
 
 func (x *TLSConfiguration) AddAllowedCertificateFromFile(filename string) bool {
-	cfilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cfilename))
-	return bool(C.TLSConfiguration_addAllowedCertificateFromFile(x.ctx, cfilename))
+	return bool(C.TLSConfiguration_addAllowedCertificateFromFile(x.ctx, StringData(filename)))
 }
 
 func (x *TLSConfiguration) AddCACertificate(certificate []byte) bool {
-	return bool(C.TLSConfiguration_addCACertificate(x.ctx, (*C.uint8_t)(unsafe.SliceData(certificate)), C.int(len(certificate))))
+	return bool(C.TLSConfiguration_addCACertificate(x.ctx, SliceData(certificate), C.int(len(certificate))))
 }
 
 func (x *TLSConfiguration) AddCACertificateFromFile(filename string) bool {
-	cfilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cfilename))
-	return bool(C.TLSConfiguration_addCACertificateFromFile(x.ctx, cfilename))
+	return bool(C.TLSConfiguration_addCACertificateFromFile(x.ctx, StringData(filename)))
 }
 
 func (x *TLSConfiguration) SetRenegotiationTime(timeInMs int) {
@@ -187,13 +175,11 @@ func (x *TLSConfiguration) SetMaxTlsVersion(version TLSConfigVersion) {
 }
 
 func (x *TLSConfiguration) AddCRL(crl []byte) bool {
-	return bool(C.TLSConfiguration_addCRL(x.ctx, (*C.uint8_t)(unsafe.SliceData(crl)), C.int(len(crl))))
+	return bool(C.TLSConfiguration_addCRL(x.ctx, SliceData(crl), C.int(len(crl))))
 }
 
 func (x *TLSConfiguration) AddCRLFromFile(filename string) bool {
-	cfilename := C.CString(filename)
-	defer C.free(unsafe.Pointer(cfilename))
-	return bool(C.TLSConfiguration_addCRLFromFile(x.ctx, cfilename))
+	return bool(C.TLSConfiguration_addCRLFromFile(x.ctx, StringData(filename)))
 }
 
 func (x *TLSConfiguration) ResetCRL() {

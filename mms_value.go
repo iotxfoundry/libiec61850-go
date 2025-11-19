@@ -314,9 +314,7 @@ func (x *MmsValue) SetUtcTimeByBuffer(timeval []byte) {
 	if len(timeval) != 8 {
 		panic("timeval must be 8 bytes long")
 	}
-	ctimeval := C.CBytes(timeval)
-	defer C.free(ctimeval)
-	C.MmsValue_setUtcTimeByBuffer(x.ctx, (*C.uint8_t)(ctimeval))
+	C.MmsValue_setUtcTimeByBuffer(x.ctx, SliceData(timeval))
 }
 
 func (x *MmsValue) GetUtcTimeBuffer() [8]byte {
@@ -358,9 +356,7 @@ func (x *MmsValue) GetBinaryTimeAsUtcMs() uint64 {
 }
 
 func (x *MmsValue) SetOctetString(value []byte) {
-	cval := C.CBytes(value)
-	defer C.free(unsafe.Pointer(cval))
-	C.MmsValue_setOctetString(x.ctx, (*C.uint8_t)(cval), C.int(len(value)))
+	C.MmsValue_setOctetString(x.ctx, SliceData(value), C.int(len(value)))
 }
 
 func (x *MmsValue) SetOctetStringOctet(octetPos int, value uint8) {
@@ -482,9 +478,7 @@ func (x *MmsValue) DeleteConditional() {
 }
 
 func MmsValueNewVisibleString(value string) *MmsValue {
-	cstr := C.CString(value)
-	defer C.free(unsafe.Pointer(cstr))
-	return &MmsValue{ctx: C.MmsValue_newVisibleString(cstr)}
+	return &MmsValue{ctx: C.MmsValue_newVisibleString(StringData(value))}
 }
 
 func MmsValueNewVisibleStringWithSize(size int) *MmsValue {
@@ -500,27 +494,19 @@ func MmsValueNewBinaryTime(timeOfDay bool) *MmsValue {
 }
 
 func MmsValueNewVisibleStringFromByteArray(byteArray []byte) *MmsValue {
-	cbytes := C.CBytes(byteArray)
-	defer C.free(unsafe.Pointer(cbytes))
-	return &MmsValue{ctx: C.MmsValue_newVisibleStringFromByteArray((*C.uint8_t)(cbytes), C.int(len(byteArray)))}
+	return &MmsValue{ctx: C.MmsValue_newVisibleStringFromByteArray(SliceData(byteArray), C.int(len(byteArray)))}
 }
 
 func MmsValueNewMmsStringFromByteArray(byteArray []byte) *MmsValue {
-	cbytes := C.CBytes(byteArray)
-	defer C.free(unsafe.Pointer(cbytes))
-	return &MmsValue{ctx: C.MmsValue_newMmsStringFromByteArray((*C.uint8_t)(cbytes), C.int(len(byteArray)))}
+	return &MmsValue{ctx: C.MmsValue_newMmsStringFromByteArray(SliceData(byteArray), C.int(len(byteArray)))}
 }
 
 func MmsValueNewMmsString(str string) *MmsValue {
-	cstr := C.CString(str)
-	defer C.free(unsafe.Pointer(cstr))
-	return &MmsValue{ctx: C.MmsValue_newMmsString(cstr)}
+	return &MmsValue{ctx: C.MmsValue_newMmsString(StringData(str))}
 }
 
 func (x *MmsValue) SetMmsString(str string) {
-	cstr := C.CString(str)
-	defer C.free(unsafe.Pointer(cstr))
-	C.MmsValue_setMmsString(x.ctx, cstr)
+	C.MmsValue_setMmsString(x.ctx, StringData(str))
 }
 
 func MmsValueNewUtcTime(timeval uint32) *MmsValue {
@@ -552,9 +538,7 @@ func (x *MmsValue) GetType() MmsType {
 // mmsPath: the MMS path of the sub-element
 // Returns: the sub-element MmsValue object
 func (x *MmsValue) GetSubElement(varSpec *MmsVariableSpecification, mmsPath string) *MmsValue {
-	cstr := C.CString(mmsPath)
-	defer C.free(unsafe.Pointer(cstr))
-	return &MmsValue{ctx: C.MmsValue_getSubElement(x.ctx, varSpec.ctx, cstr)}
+	return &MmsValue{ctx: C.MmsValue_getSubElement(x.ctx, varSpec.ctx, StringData(mmsPath))}
 }
 
 func (x *MmsValue) GetTypeString() string {
