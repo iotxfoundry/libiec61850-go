@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	libiec61850go "github.com/iotxfoundry/libiec61850-go"
 )
 
@@ -365,8 +363,6 @@ func init() {
 }
 
 func initializeValues() {
-	// Set initial values for the model
-	fmt.Println("Initializing values for the model")
 	iedModel_GenericIO_LLN0_Mod_stVal.SetMmsValue(libiec61850go.MmsValueNewIntegerFromInt32(1))
 	iedModel_GenericIO_LLN0_Mod_ctlModel.SetMmsValue(libiec61850go.MmsValueNewIntegerFromInt32(0))
 	iedModel_GenericIO_LLN0_Beh_stVal.SetMmsValue(libiec61850go.MmsValueNewIntegerFromInt32(1))
@@ -383,5 +379,4 @@ func initializeValues() {
 	iedModel_GenericIO_GGIO1_SPCSO2_ctlModel.SetMmsValue(libiec61850go.MmsValueNewIntegerFromInt32(1))
 	iedModel_GenericIO_GGIO1_SPCSO3_ctlModel.SetMmsValue(libiec61850go.MmsValueNewIntegerFromInt32(1))
 	iedModel_GenericIO_GGIO1_SPCSO4_ctlModel.SetMmsValue(libiec61850go.MmsValueNewIntegerFromInt32(1))
-
 }
