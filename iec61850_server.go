@@ -91,9 +91,7 @@ func (x *IedServerConfig) GetSyncIntegrityReportTimes() bool {
 }
 
 func (x *IedServerConfig) SetFileServiceBasePath(basepath string) {
-	cstr := C.CString(basepath)
-	defer C.free(unsafe.Pointer(cstr))
-	C.IedServerConfig_setFileServiceBasePath(x.ctx, cstr)
+	C.IedServerConfig_setFileServiceBasePath(x.ctx, StringData(basepath))
 }
 
 func (x *IedServerConfig) GetFileServiceBasePath() string {
