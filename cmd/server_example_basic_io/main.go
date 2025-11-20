@@ -76,7 +76,7 @@ func main() {
 	t := float32(0.0)
 	timer := time.NewTimer(100 * time.Millisecond)
 	for range timer.C {
-		timestamp := uint64(time.Now().UnixNano() / int64(time.Millisecond))
+		timestamp := uint64(time.Now().UnixMilli())
 		t += 0.1
 
 		an1 := float32(math.Sin(float64(t)))
@@ -120,7 +120,7 @@ func rcbEventHandler(parameter unsafe.Pointer, rcb *libiec61850go.ReportControlB
 
 	if (event == libiec61850go.RCB_EVENT_SET_PARAMETER) || (event == libiec61850go.RCB_EVENT_GET_PARAMETER) {
 		fmt.Printf("  param:  %s\n", parameterName)
-		fmt.Printf("  result: %d\n", serviceError)
+		fmt.Printf("  result: %s\n", serviceError)
 	}
 
 	if event == libiec61850go.RCB_EVENT_ENABLE {
@@ -156,7 +156,7 @@ func controlHandlerForBinaryOutput(action *libiec61850go.ControlAction, paramete
 		return libiec61850go.CONTROL_RESULT_FAILED
 	}
 
-	timeStamp := time.Now().UnixNano() / int64(time.Millisecond)
+	timeStamp := time.Now().UnixMilli()
 
 	if parameter == unsafe.Pointer(iedModel_GenericIO_GGIO1_SPCSO1) {
 		iedServer.UpdateUTCTimeAttributeValue(iedModel_GenericIO_GGIO1_SPCSO1_t, uint64(timeStamp))

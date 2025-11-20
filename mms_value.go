@@ -55,6 +55,29 @@ const (
 	DATA_ACCESS_ERROR_UNKNOWN                       MmsDataAccessError = C.DATA_ACCESS_ERROR_UNKNOWN                       // Unknown error
 )
 
+var MmsDataAccessErrorString = map[MmsDataAccessError]string{
+	DATA_ACCESS_ERROR_SUCCESS_NO_UPDATE:             "Success with no update",
+	DATA_ACCESS_ERROR_NO_RESPONSE:                   "No response (server internal)",
+	DATA_ACCESS_ERROR_SUCCESS:                       "Success",
+	DATA_ACCESS_ERROR_OBJECT_INVALIDATED:            "Object invalidated",
+	DATA_ACCESS_ERROR_HARDWARE_FAULT:                "Hardware fault",
+	DATA_ACCESS_ERROR_TEMPORARILY_UNAVAILABLE:       "Temporarily unavailable",
+	DATA_ACCESS_ERROR_OBJECT_ACCESS_DENIED:          "Object access denied",
+	DATA_ACCESS_ERROR_OBJECT_UNDEFINED:              "Object undefined",
+	DATA_ACCESS_ERROR_INVALID_ADDRESS:               "Invalid address",
+	DATA_ACCESS_ERROR_TYPE_UNSUPPORTED:              "Type unsupported",
+	DATA_ACCESS_ERROR_TYPE_INCONSISTENT:             "Type inconsistent",
+	DATA_ACCESS_ERROR_OBJECT_ATTRIBUTE_INCONSISTENT: "Object attribute inconsistent",
+	DATA_ACCESS_ERROR_OBJECT_ACCESS_UNSUPPORTED:     "Object access unsupported",
+	DATA_ACCESS_ERROR_OBJECT_NONE_EXISTENT:          "Object non-existent",
+	DATA_ACCESS_ERROR_OBJECT_VALUE_INVALID:          "Object value invalid",
+	DATA_ACCESS_ERROR_UNKNOWN:                       "Unknown error",
+}
+
+func (x MmsDataAccessError) String() string {
+	return MmsDataAccessErrorString[x]
+}
+
 // MmsValue represents a complex value type for MMS Client API.
 // It provides methods to work with various MMS data types including arrays, structures, integers, floats, strings, etc.
 type MmsValue struct {
