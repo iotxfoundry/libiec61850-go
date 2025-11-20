@@ -153,6 +153,10 @@ func (x *DataAttribute) Initialize(
 	if x.ctx == nil {
 		x.ctx = &C.DataAttribute{}
 	}
+	var cmmsValue *C.MmsValue
+	if mmsValue != nil {
+		cmmsValue = mmsValue.ctx
+	}
 	x.ctx.modelType = C.ModelNodeType(modelType)
 	x.ctx.name = C.CString(name)
 	x.ctx.parent = cparent
@@ -163,7 +167,7 @@ func (x *DataAttribute) Initialize(
 	x.ctx.fc = C.FunctionalConstraint(fc)
 	x.ctx._type = C.DataAttributeType(type_)
 	x.ctx.triggerOptions = C.uint8_t(triggerOptions)
-	x.ctx.mmsValue = mmsValue.ctx
+	x.ctx.mmsValue = cmmsValue
 	x.ctx.sAddr = C.uint32_t(addr)
 }
 
@@ -213,6 +217,14 @@ func (x *DataAttribute) TriggerOptions() uint8 {
 
 func (x *DataAttribute) MmsValue() *MmsValue {
 	return &MmsValue{ctx: x.ctx.mmsValue}
+}
+
+func (x *DataAttribute) SetMmsValue(mmsValue *MmsValue) {
+	if x.ctx.mmsValue != nil {
+		(&MmsValue{ctx: x.ctx.mmsValue}).Delete()
+		x.ctx.mmsValue = nil
+	}
+	x.ctx.mmsValue = mmsValue.ctx
 }
 
 func (x *DataAttribute) Addr() uint32 {

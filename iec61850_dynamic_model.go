@@ -80,7 +80,9 @@ func (x *ReportControlBlock) GetParent() *LogicalNode {
 }
 
 func (x *ReportControlBlock) GetRptId() string {
-	return C.GoString(C.ReportControlBlock_getRptID(x.ctx))
+	cstr := C.ReportControlBlock_getRptID(x.ctx)
+	defer C.free(unsafe.Pointer(cstr))
+	return C.GoString(cstr)
 }
 
 func (x *ReportControlBlock) GetRptEna() bool {
@@ -88,7 +90,9 @@ func (x *ReportControlBlock) GetRptEna() bool {
 }
 
 func (x *ReportControlBlock) GetDataSetName() string {
-	return C.GoString(C.ReportControlBlock_getDataSet(x.ctx))
+	cstr := C.ReportControlBlock_getDataSet(x.ctx)
+	defer C.free(unsafe.Pointer(cstr))
+	return C.GoString(cstr)
 }
 
 func (x *ReportControlBlock) GetConfRef() uint32 {

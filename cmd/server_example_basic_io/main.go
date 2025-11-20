@@ -3,10 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
+	"os"
 	"time"
 	"unsafe"
 
 	libiec61850go "github.com/iotxfoundry/libiec61850-go"
+)
+
+// inject by go build
+var (
+	Version   = "0.0.0"
+	BuildTime = "2020-01-13-0802 UTC"
 )
 
 var (
@@ -47,10 +55,91 @@ func main() {
 	iedServer.SetServerIdentity("MZ", "basic io", "1.6.0")
 
 	// Install handler for operate command
-	iedServer.SetControlHandler(iedModel_GenericIO_GGIO1_SPCSO1, ControlHandler, unsafe.Pointer(iedModel_GenericIO_GGIO1_SPCSO1))
+	iedServer.SetControlHandler(iedModel_GenericIO_GGIO1_SPCSO1, controlHandlerForBinaryOutput, unsafe.Pointer(iedModel_GenericIO_GGIO1_SPCSO1))
+	iedServer.SetControlHandler(iedModel_GenericIO_GGIO1_SPCSO2, controlHandlerForBinaryOutput, unsafe.Pointer(iedModel_GenericIO_GGIO1_SPCSO2))
+	iedServer.SetControlHandler(iedModel_GenericIO_GGIO1_SPCSO3, controlHandlerForBinaryOutput, unsafe.Pointer(iedModel_GenericIO_GGIO1_SPCSO3))
+	iedServer.SetControlHandler(iedModel_GenericIO_GGIO1_SPCSO4, controlHandlerForBinaryOutput, unsafe.Pointer(iedModel_GenericIO_GGIO1_SPCSO4))
+
+	iedServer.SetConnectionIndicationHandler(connectionHandler, nil)
+
+	iedServer.SetRCBEventHandler(rcbEventHandler, nil)
+
+	iedServer.SetWriteAccessPolicy(libiec61850go.IEC61850_FC_DC, libiec61850go.ACCESS_POLICY_ALLOW)
+
+	iedServer.Start(*portFlag)
+
+	if !iedServer.IsRunning() {
+		fmt.Printf("Starting server failed (maybe need root permissions or another server is already using the port)! Exit.\n")
+		iedServer.Destroy()
+		os.Exit(1)
+	}
+	t := float32(0.0)
+	timer := time.NewTimer(100 * time.Millisecond)
+	for range timer.C {
+		timestamp := uint64(time.Now().UnixNano() / int64(time.Millisecond))
+		t += 0.1
+
+		an1 := float32(math.Sin(float64(t)))
+		an2 := float32(math.Sin(float64(t + 1.)))
+		an3 := float32(math.Sin(float64(t + 2.)))
+		an4 := float32(math.Sin(float64(t + 3.)))
+
+		iecTimestamp := libiec61850go.NewTimestamp()
+		iecTimestamp.ClearFlags()
+		iecTimestamp.SetTimeInMilliseconds(timestamp)
+		iecTimestamp.SetLeapSecondKnown(true)
+
+		/* toggle clock-not-synchronized flag in timestamp */
+		if int(t)%2 == 0 {
+			iecTimestamp.SetClockNotSynchronized(true)
+		} else {
+			iecTimestamp.SetClockNotSynchronized(false)
+		}
+
+		iedServer.LockDataModel()
+		iedServer.UpdateTimestampAttributeValue(iedModel_GenericIO_GGIO1_AnIn1_t, iecTimestamp)
+		iedServer.UpdateFloatAttributeValue(iedModel_GenericIO_GGIO1_AnIn1_mag_f, an1)
+
+		iedServer.UpdateTimestampAttributeValue(iedModel_GenericIO_GGIO1_AnIn2_t, iecTimestamp)
+		iedServer.UpdateFloatAttributeValue(iedModel_GenericIO_GGIO1_AnIn2_mag_f, an2)
+
+		iedServer.UpdateTimestampAttributeValue(iedModel_GenericIO_GGIO1_AnIn3_t, iecTimestamp)
+		iedServer.UpdateFloatAttributeValue(iedModel_GenericIO_GGIO1_AnIn3_mag_f, an3)
+
+		iedServer.UpdateTimestampAttributeValue(iedModel_GenericIO_GGIO1_AnIn4_t, iecTimestamp)
+		iedServer.UpdateFloatAttributeValue(iedModel_GenericIO_GGIO1_AnIn4_mag_f, an4)
+		iedServer.UnlockDataModel()
+	}
+
+	iedServer.Stop()
+	iedServer.Destroy()
 }
 
-func ControlHandler(action *libiec61850go.ControlAction, parameter unsafe.Pointer, ctlVal *libiec61850go.MmsValue, test bool) libiec61850go.ControlHandlerResult {
+func rcbEventHandler(parameter unsafe.Pointer, rcb *libiec61850go.ReportControlBlock, connection *libiec61850go.ClientConnection, event libiec61850go.RCBEventType, parameterName string, serviceError libiec61850go.MmsDataAccessError) {
+	fmt.Printf("RCB: %s event: %d\n", rcb.Name(), event)
+
+	if (event == libiec61850go.RCB_EVENT_SET_PARAMETER) || (event == libiec61850go.RCB_EVENT_GET_PARAMETER) {
+		fmt.Printf("  param:  %s\n", parameterName)
+		fmt.Printf("  result: %d\n", serviceError)
+	}
+
+	if event == libiec61850go.RCB_EVENT_ENABLE {
+		rptId := rcb.GetRptId()
+		fmt.Printf("   rptID:  %s\n", rptId)
+		dataSet := rcb.GetDataSetName()
+		fmt.Printf("   datSet: %s\n", dataSet)
+	}
+}
+
+func connectionHandler(self *libiec61850go.IedServer, connection *libiec61850go.ClientConnection, connected bool, parameter unsafe.Pointer) {
+	if connected {
+		fmt.Println("Connection opened")
+	} else {
+		fmt.Println("Connection closed")
+	}
+}
+
+func controlHandlerForBinaryOutput(action *libiec61850go.ControlAction, parameter unsafe.Pointer, ctlVal *libiec61850go.MmsValue, test bool) libiec61850go.ControlHandlerResult {
 	if test {
 		return libiec61850go.CONTROL_RESULT_FAILED
 	}

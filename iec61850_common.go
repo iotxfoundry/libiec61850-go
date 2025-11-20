@@ -325,6 +325,10 @@ type Timestamp struct {
 	ctx *C.Timestamp
 }
 
+func NewTimestamp() *Timestamp {
+	return &Timestamp{ctx: &C.Timestamp{}}
+}
+
 func TimestampCreate() *Timestamp {
 	return &Timestamp{ctx: C.Timestamp_create()}
 }
@@ -397,16 +401,16 @@ func (x *Timestamp) SetSubsecondPrecision(value int) {
 	C.Timestamp_setSubsecondPrecision(x.ctx, C.int(value))
 }
 
-func (x *Timestamp) SetTimeInSeconds(value time.Duration) {
-	C.Timestamp_setTimeInSeconds(x.ctx, C.uint32_t(value.Seconds()))
+func (x *Timestamp) SetTimeInSeconds(value uint32) {
+	C.Timestamp_setTimeInSeconds(x.ctx, C.uint32_t(value))
 }
 
-func (x *Timestamp) SetTimeInMilliseconds(value time.Duration) {
-	C.Timestamp_setTimeInMilliseconds(x.ctx, C.msSinceEpoch(value.Milliseconds()))
+func (x *Timestamp) SetTimeInMilliseconds(value uint64) {
+	C.Timestamp_setTimeInMilliseconds(x.ctx, C.msSinceEpoch(value))
 }
 
-func (x *Timestamp) SetTimeInNanoseconds(value time.Duration) {
-	C.Timestamp_setTimeInNanoseconds(x.ctx, C.nsSinceEpoch(value.Nanoseconds()))
+func (x *Timestamp) SetTimeInNanoseconds(value uint64) {
+	C.Timestamp_setTimeInNanoseconds(x.ctx, C.nsSinceEpoch(value))
 }
 
 func (x *Timestamp) SetByMmsUtcTime(mmsValue *MmsValue) {

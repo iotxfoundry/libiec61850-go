@@ -91,7 +91,9 @@ func (x *IedServerConfig) GetSyncIntegrityReportTimes() bool {
 }
 
 func (x *IedServerConfig) SetFileServiceBasePath(basepath string) {
-	C.IedServerConfig_setFileServiceBasePath(x.ctx, StringData(basepath))
+	cstr := C.CString(basepath)
+	defer C.free(unsafe.Pointer(cstr))
+	C.IedServerConfig_setFileServiceBasePath(x.ctx, cstr)
 }
 
 func (x *IedServerConfig) GetFileServiceBasePath() string {
@@ -207,7 +209,13 @@ func IedServerCreateWithConfig(dataModel *IedModel, tlsConfiguration *TLSConfigu
 	if tlsConfiguration != nil {
 		tlsCtx = tlsConfiguration.ctx
 	}
-	return &IedServer{ctx: C.IedServer_createWithConfig(dataModel.ctx, tlsCtx, serverConfiguration.ctx)}
+	iedServer := &IedServer{}
+	iedServer.ctx = C.IedServer_createWithConfig(
+		dataModel.ctx,
+		tlsCtx,
+		serverConfiguration.ctx,
+	)
+	return iedServer
 }
 
 func (x *IedServer) Destroy() {
@@ -674,14 +682,17 @@ func (x *IedServer) SetControlHandler(node *DataObject, handler ControlHandler, 
 }
 
 func (x *IedServer) SetPerformCheckHandler(node *DataObject, handler ControlPerformCheckHandler, parameter unsafe.Pointer) {
+	mapControlPerformCheckHandlers.Store(x, handler)
 	C.IedServer_setPerformCheckHandler(x.ctx, node.ctx, C.ControlPerformCheckHandler(C.fControlPerformCheckHandlerGo), parameter)
 }
 
 func (x *IedServer) SetWaitForExecutionHandler(node *DataObject, handler ControlWaitForExecutionHandler, parameter unsafe.Pointer) {
+	mapControlWaitForExecutionHandlers.Store(x, handler)
 	C.IedServer_setWaitForExecutionHandler(x.ctx, node.ctx, C.ControlWaitForExecutionHandler(C.fControlWaitForExecutionHandlerGo), parameter)
 }
 
 func (x *IedServer) SetSelectStateChangedHandler(node *DataObject, handler ControlSelectStateChangedHandler, parameter unsafe.Pointer) {
+	mapControlSelectStateChangedHandlers.Store(x, handler)
 	C.IedServer_setSelectStateChangedHandler(x.ctx, node.ctx, C.ControlSelectStateChangedHandler(C.fControlSelectStateChangedHandlerGo), parameter)
 }
 
@@ -719,6 +730,7 @@ func fRCBEventHandlerGo(parameter unsafe.Pointer, rcb *C.ReportControlBlock, con
 }
 
 func (x *IedServer) SetRCBEventHandler(handler RCBEventHandler, parameter unsafe.Pointer) {
+	mapRCBEventHandlers.Store(x, handler)
 	C.IedServer_setRCBEventHandler(x.ctx, C.IedServer_RCBEventHandler(C.fRCBEventHandlerGo), parameter)
 }
 
