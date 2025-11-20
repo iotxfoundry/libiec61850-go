@@ -121,7 +121,8 @@ type DataAttribute struct {
 }
 
 func NewDataAttribute() *DataAttribute {
-	return &DataAttribute{ctx: &C.DataAttribute{}}
+	ctx := C.malloc(C.sizeof_DataAttribute)
+	return &DataAttribute{ctx: (*C.DataAttribute)(ctx)}
 }
 
 func (x *DataAttribute) Initialize(
@@ -151,7 +152,7 @@ func (x *DataAttribute) Initialize(
 		cfirstChild = (*C.ModelNode)(firstChild.Context())
 	}
 	if x.ctx == nil {
-		x.ctx = &C.DataAttribute{}
+		x.ctx = (*C.DataAttribute)(C.malloc(C.sizeof_DataAttribute))
 	}
 	var cmmsValue *C.MmsValue
 	if mmsValue != nil {
@@ -236,7 +237,8 @@ type DataObject struct {
 }
 
 func NewDataObject() *DataObject {
-	return &DataObject{ctx: &C.DataObject{}}
+	ctx := C.malloc(C.sizeof_DataObject)
+	return &DataObject{ctx: (*C.DataObject)(ctx)}
 }
 
 func (x *DataObject) Initialize(
@@ -261,7 +263,7 @@ func (x *DataObject) Initialize(
 		cfirstChild = (*C.ModelNode)(firstChild.Context())
 	}
 	if x.ctx == nil {
-		x.ctx = &C.DataObject{}
+		x.ctx = (*C.DataObject)(C.malloc(C.sizeof_DataObject))
 	}
 	x.ctx.modelType = C.ModelNodeType(modelType)
 	x.ctx.name = C.CString(name)
@@ -390,7 +392,8 @@ type LogicalDevice struct {
 }
 
 func NewLogicalDevice() *LogicalDevice {
-	return &LogicalDevice{ctx: &C.LogicalDevice{}}
+	ctx := C.malloc(C.sizeof_LogicalDevice)
+	return &LogicalDevice{ctx: (*C.LogicalDevice)(ctx)}
 }
 
 func (x *LogicalDevice) Initialize(
@@ -418,7 +421,7 @@ func (x *LogicalDevice) Initialize(
 		cldName = C.CString(*ldName)
 	}
 	if x.ctx == nil {
-		x.ctx = &C.LogicalDevice{}
+		x.ctx = (*C.LogicalDevice)(C.malloc(C.sizeof_LogicalDevice))
 	}
 	x.ctx.modelType = C.ModelNodeType(modelType)
 	x.ctx.name = C.CString(name)
@@ -477,7 +480,8 @@ type IedModel struct {
 }
 
 func NewIedModel() *IedModel {
-	return &IedModel{ctx: &C.IedModel{}}
+	ctx := C.malloc(C.sizeof_IedModel)
+	return &IedModel{ctx: (*C.IedModel)(ctx)}
 }
 
 func (x *IedModel) Initialize(name string,
@@ -524,7 +528,7 @@ func (x *IedModel) Initialize(name string,
 		clogs = logs.ctx
 	}
 	if x.ctx == nil {
-		x.ctx = &C.IedModel{}
+		x.ctx = (*C.IedModel)(C.malloc(C.sizeof_IedModel))
 	}
 	x.ctx.name = C.CString(name)
 	x.ctx.firstChild = cfirstChild
@@ -661,7 +665,8 @@ type DataSet struct {
 }
 
 func NewDataSet() *DataSet {
-	return &DataSet{ctx: &C.DataSet{}}
+	ctx := C.malloc(C.sizeof_DataSet)
+	return &DataSet{ctx: (*C.DataSet)(ctx)}
 }
 
 func (x *DataSet) Initialize(logicalDeviceName string, name string, elementCount int, fcdas *DataSetEntry, sibling *DataSet) {
@@ -674,7 +679,7 @@ func (x *DataSet) Initialize(logicalDeviceName string, name string, elementCount
 		csibling = sibling.ctx
 	}
 	if x.ctx == nil {
-		x.ctx = &C.DataSet{}
+		x.ctx = (*C.DataSet)(C.malloc(C.sizeof_DataSet))
 	}
 	x.ctx.logicalDeviceName = C.CString(logicalDeviceName)
 	x.ctx.name = C.CString(name)
@@ -720,7 +725,8 @@ type DataSetEntry struct {
 }
 
 func NewDataSetEntry() *DataSetEntry {
-	return &DataSetEntry{ctx: &C.DataSetEntry{}}
+	ctx := C.malloc(C.sizeof_DataSetEntry)
+	return &DataSetEntry{ctx: (*C.DataSetEntry)(ctx)}
 }
 
 func (x *DataSetEntry) Initialize(logicalDeviceName string, isLDNameDynamicallyAllocated bool, variableName string, index int, componentName *string, value *MmsValue, sibling *DataSetEntry) {
@@ -737,7 +743,7 @@ func (x *DataSetEntry) Initialize(logicalDeviceName string, isLDNameDynamicallyA
 		csibling = sibling.ctx
 	}
 	if x.ctx == nil {
-		x.ctx = &C.DataSetEntry{}
+		x.ctx = (*C.DataSetEntry)(C.malloc(C.sizeof_DataSetEntry))
 	}
 	x.ctx.logicalDeviceName = C.CString(logicalDeviceName)
 	x.ctx.isLDNameDynamicallyAllocated = C.bool(isLDNameDynamicallyAllocated)
@@ -785,7 +791,8 @@ type ReportControlBlock struct {
 }
 
 func NewReportControlBlock() *ReportControlBlock {
-	return &ReportControlBlock{ctx: &C.ReportControlBlock{}}
+	ctx := C.malloc(C.sizeof_ReportControlBlock)
+	return &ReportControlBlock{ctx: (*C.ReportControlBlock)(ctx)}
 }
 
 func (x *ReportControlBlock) Initialize(
@@ -811,7 +818,7 @@ func (x *ReportControlBlock) Initialize(
 		csibling = sibling.ctx
 	}
 	if x.ctx == nil {
-		x.ctx = &C.ReportControlBlock{}
+		x.ctx = (*C.ReportControlBlock)(C.malloc(C.sizeof_ReportControlBlock))
 	}
 	x.ctx.parent = cparent
 	x.ctx.name = C.CString(name)
