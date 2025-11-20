@@ -195,11 +195,19 @@ func IedServerCreate(dataModel *IedModel) *IedServer {
 }
 
 func IedServerCreateWithTlsSupport(dataModel *IedModel, tlsConfiguration *TLSConfiguration) *IedServer {
-	return &IedServer{ctx: C.IedServer_createWithTlsSupport(dataModel.ctx, tlsConfiguration.ctx)}
+	var tlsCtx C.TLSConfiguration
+	if tlsConfiguration != nil {
+		tlsCtx = tlsConfiguration.ctx
+	}
+	return &IedServer{ctx: C.IedServer_createWithTlsSupport(dataModel.ctx, tlsCtx)}
 }
 
 func IedServerCreateWithConfig(dataModel *IedModel, tlsConfiguration *TLSConfiguration, serverConfiguration *IedServerConfig) *IedServer {
-	return &IedServer{ctx: C.IedServer_createWithConfig(dataModel.ctx, tlsConfiguration.ctx, serverConfiguration.ctx)}
+	var tlsCtx C.TLSConfiguration
+	if tlsConfiguration != nil {
+		tlsCtx = tlsConfiguration.ctx
+	}
+	return &IedServer{ctx: C.IedServer_createWithConfig(dataModel.ctx, tlsCtx, serverConfiguration.ctx)}
 }
 
 func (x *IedServer) Destroy() {
@@ -207,7 +215,11 @@ func (x *IedServer) Destroy() {
 }
 
 func (x *IedServer) AddAccessPoint(ipAddr string, tcpPort int, tlsConfiguration *TLSConfiguration) bool {
-	return bool(C.IedServer_addAccessPoint(x.ctx, StringData(ipAddr), C.int(tcpPort), tlsConfiguration.ctx))
+	var tlsCtx C.TLSConfiguration
+	if tlsConfiguration != nil {
+		tlsCtx = tlsConfiguration.ctx
+	}
+	return bool(C.IedServer_addAccessPoint(x.ctx, StringData(ipAddr), C.int(tcpPort), tlsCtx))
 }
 
 func (x *IedServer) SetLocalIpAddress(localIpAddress string) {
@@ -657,6 +669,7 @@ func fControlSelectStateChangedHandlerGo(action C.ControlAction, parameter unsaf
 }
 
 func (x *IedServer) SetControlHandler(node *DataObject, handler ControlHandler, parameter unsafe.Pointer) {
+	mapControlHandlers.Store(x, handler)
 	C.IedServer_setControlHandler(x.ctx, node.ctx, C.ControlHandler(C.fControlHandlerGo), parameter)
 }
 
